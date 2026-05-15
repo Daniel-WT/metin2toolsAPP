@@ -178,6 +178,7 @@ export default {
     if (request.method === 'GET' && url.pathname === '/firebase-config') {
       return new Response(JSON.stringify({
         apiKey:      env.FB_API_KEY,
+        authDomain:  `${env.FB_PROJECT_ID}.firebaseapp.com`,
         databaseURL: env.FB_DATABASE_URL,
         projectId:   env.FB_PROJECT_ID,
         appId:       env.FB_APP_ID,

@@ -7,10 +7,9 @@ console.log("[App] Starting application...");
   if (typeof window._initAuth === 'function') {
     window._initAuth();
   }
+  load();
+  loadAlerts();
 })();
-
-load();
-loadAlerts();
 // Disable entrance animations after initial load to prevent re-render flicker
 setTimeout(function() { document.body.classList.add('app-ready'); }, 650);
 
