@@ -30,15 +30,17 @@ interface GraphicPreset {
 }
 
 const GFX_SETTINGS = [
-  { key: 'SHADOW_RENDER_QUALITY', label: 'Calitate Umbre', values: ['0', '1', '2'], valueLabels: ['Off', 'Low', 'High'] },
-  { key: 'CHARACTER_SHADOW_ENABLE', label: 'Umbre Personaj', values: ['0', '1'], valueLabels: ['Off', 'On'] },
-  { key: 'BPP', label: 'Adâncime Culori', values: ['16', '32'], valueLabels: ['16 bpp', '32 bpp'] },
+  { key: 'SHADOW_RENDER_QUALITY',  label: 'Calitate Umbre',   values: ['0','1','2'],           valueLabels: ['Off','Low','High'] },
+  { key: 'CHARACTER_SHADOW_ENABLE',label: 'Umbre Personaj',   values: ['0','1'],               valueLabels: ['Off','On'] },
+  { key: 'BPP',                    label: 'Adâncime Culori',  values: ['16','32'],             valueLabels: ['16 bpp','32 bpp'] },
+  { key: 'EFFECT_LEVEL',           label: 'Efecte',           values: ['0','1','2','3','4'],   valueLabels: ['Normal','1','2','3','Ascuns'] },
+  { key: 'PRIVATE_SHOP_LEVEL',     label: 'Shopuri Private',  values: ['0','1','2','3','4'],   valueLabels: ['Normal','1','2','3','Ascuns'] },
+  { key: 'DROP_ITEM_LEVEL',        label: 'Drop Items',       values: ['0','1','2','3','4'],   valueLabels: ['Normal','1','2','3','Ascuns'] },
 ];
 
 const DEFAULT_GFX_PRESETS: GraphicPreset[] = [
-  { id: 'gfx_low', label: 'Performance', settings: { SHADOW_RENDER_QUALITY: '0', CHARACTER_SHADOW_ENABLE: '0', BPP: '16' } },
-  { id: 'gfx_bal', label: 'Balanced',    settings: { SHADOW_RENDER_QUALITY: '1', CHARACTER_SHADOW_ENABLE: '0', BPP: '32' } },
-  { id: 'gfx_hi',  label: 'Quality',     settings: { SHADOW_RENDER_QUALITY: '2', CHARACTER_SHADOW_ENABLE: '1', BPP: '32' } },
+  { id: 'gfx_normal', label: 'Normal',    settings: { EFFECT_LEVEL: '0', PRIVATE_SHOP_LEVEL: '0', DROP_ITEM_LEVEL: '0' } },
+  { id: 'gfx_opt',    label: 'Optimizat', settings: { EFFECT_LEVEL: '4', PRIVATE_SHOP_LEVEL: '4', DROP_ITEM_LEVEL: '4' } },
 ];
 
 const DEFAULT_PRESETS: Preset[] = [
@@ -831,7 +833,7 @@ export default function Tweaks() {
         )}
 
         {/* Presets grid */}
-        <div className={cn('grid grid-cols-3 gap-3 transition-opacity', !cfgPath && 'opacity-30 pointer-events-none')}>
+        <div className={cn('grid grid-cols-2 gap-3 transition-opacity', !cfgPath && 'opacity-30 pointer-events-none')}>
           {[...DEFAULT_GFX_PRESETS, ...customGfxPresets].map(preset => {
             const isLoading = applyingGfx === preset.id;
             const isActive = Object.entries(preset.settings).every(([k, v]) => gfxSettings[k] === v);

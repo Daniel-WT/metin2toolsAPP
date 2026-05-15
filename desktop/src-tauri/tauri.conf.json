@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "metin2tools",
-    "version": "1.0.2"
+    "version": "1.0.3"
   },
   "tauri": {
     "allowlist": {
@@ -62,9 +62,9 @@
       "active": true,
       "dialog": true,
       "endpoints": [
-        "https://github.com/GITHUB_USER/GITHUB_REPO/releases/latest/download/latest.json"
+        "https://github.com/Daniel-WT/metin2toolsAPP/releases/latest/download/latest.json"
       ],
-      "pubkey": "PUNE_AICI_CONTINUTUL_FISIERULUI_.key.pub"
+      "pubkey": "untrusted comment: minisign public key: DE69BFF2EF77DD39\nRWQ53Xfv8r9p3umZYMxwcWgx9lw1bj3/7z1yNq1K3OqF+LXSB4OFXAUR\n"
     }
   }
 }
