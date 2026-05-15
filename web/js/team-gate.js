@@ -231,6 +231,29 @@ window.TeamGate = {
 
         try {
             const user = firebase.auth().currentUser;
+            const isSuperAdmin = window.currentUserProfile && window.currentUserProfile.isSuperAdmin;
+
+            if (isSuperAdmin) {
+                // Super-admin bypasses the request queue and creates the team directly
+                await db.ref(`teams/${teamId}`).set({
+                    id: teamId,
+                    metadata: {
+                        name: teamName,
+                        inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+                        ownerId: user.uid,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    },
+                    status: 'active'
+                });
+                await db.ref(`users/${user.uid}`).update({
+                    teamId: teamId,
+                    currentTeamId: teamId,
+                    role: 'leader'
+                });
+                location.reload();
+                return;
+            }
+
             await db.ref(`team_requests/${teamId}`).set({
                 id: teamId,
                 name: teamName,
