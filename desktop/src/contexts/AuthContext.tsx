@@ -71,6 +71,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             ...data,
+            teamId: data.currentTeamId || data.teamId || null,
             isSuperAdmin: firebaseUser.email === 'postavarudaniel@gmail.com' || !!data.isSuperAdmin,
             permissions: data.permissions || {}
           });
