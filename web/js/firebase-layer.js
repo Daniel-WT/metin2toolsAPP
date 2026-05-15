@@ -103,6 +103,7 @@ function initFirebase(config) {
       // 3. Spawn
       db.ref(`teams/${teamId}/spawn/data`).on('value', snap => {
         const val = snap.val();
+        console.log('[Sync] Spawn data received from Firebase:', val ? Object.keys(val) : 'null');
         if (!val) return;
         if (!spawnData) spawnData = {};
         
