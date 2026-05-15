@@ -42,7 +42,8 @@ function initTeamMgmt() {
         }
     }
 
-    renderMemberList(); 
+    renderWebhookSettings(canManage);
+    renderMemberList();
   });
 
   // 2. Listen for Team Members
@@ -330,6 +331,52 @@ window.disbandTeam = async () => {
     showToast('Eroare la desființarea echipei', 'error');
   }
 };
+
+window.saveWebhookSettings = async function() {
+  const teamId = window.currentUserProfile?.currentTeamId || window.currentUserProfile?.teamId;
+  if (!teamId) return;
+  const skinVal  = document.getElementById('inputWebhookSkin')?.value.trim()   || null;
+  const srvVal   = document.getElementById('inputWebhookServer')?.value.trim() || null;
+  try {
+    await db.ref(`teams/${teamId}/settings`).update({
+      discordWebhookSkin:   skinVal,
+      discordWebhookServer: srvVal
+    });
+    showToast('Webhook-uri salvate!', 'success');
+  } catch(e) {
+    showToast('Eroare la salvare', 'error');
+  }
+};
+
+function renderWebhookSettings(canManage) {
+  const container = document.getElementById('teamWebhookSettings');
+  if (!container) return;
+  if (!canManage) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <div style="margin-bottom: 30px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 20px; padding: 24px;">
+      <div style="font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; display: flex; align-items: center; gap: 8px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.46 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.37 1.2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.52a16 16 0 0 0 6.29 6.29l1.59-1.59a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        Webhooks Discord
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 8px;">Webhook Costume / Iteme</label>
+          <input id="inputWebhookSkin" type="text" placeholder="https://discord.com/api/webhooks/..." value="${escHtml(window.teamWebhookSkin || '')}"
+            style="width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 14px; color: #fff; font-size: 13px; outline: none; box-sizing: border-box; font-family: inherit;">
+        </div>
+        <div>
+          <label style="font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.8px; display: block; margin-bottom: 8px;">Webhook Status Server</label>
+          <input id="inputWebhookServer" type="text" placeholder="https://discord.com/api/webhooks/..." value="${escHtml(window.teamWebhookServer || '')}"
+            style="width: 100%; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 14px; color: #fff; font-size: 13px; outline: none; box-sizing: border-box; font-family: inherit;">
+        </div>
+        <button onclick="saveWebhookSettings()" style="align-self: flex-start; padding: 10px 24px; background: rgba(200,150,46,0.15); border: 1px solid rgba(200,150,46,0.3); border-radius: 10px; color: #f0b845; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; transition: all 0.2s;">
+          Salvează
+        </button>
+      </div>
+    </div>
+  `;
+}
 
 window.generateNewInviteCode = async () => {
   const teamId = window.currentUserProfile?.currentTeamId || window.currentUserProfile?.teamId;

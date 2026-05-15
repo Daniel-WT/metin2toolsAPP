@@ -210,6 +210,11 @@ function initFirebase(config) {
         var s = snap.val() || {};
         window.teamWebhookSkin   = s.discordWebhookSkin   || null;
         window.teamWebhookServer = s.discordWebhookServer || null;
+        // Update inputs if the settings card is currently visible
+        var skinInput = document.getElementById('inputWebhookSkin');
+        var srvInput  = document.getElementById('inputWebhookServer');
+        if (skinInput && document.activeElement !== skinInput) skinInput.value = window.teamWebhookSkin || '';
+        if (srvInput  && document.activeElement !== srvInput)  srvInput.value  = window.teamWebhookServer || '';
       });
 
       // 7. Discord dedup sync — populates _discordNotifiedFb so cross-browser dedup works
