@@ -691,15 +691,20 @@ export default function AdminPanel() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={cn(
-                          "w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black",
+                          "w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0",
                           isProtected ? "bg-accent-gold text-bg-primary shadow-[0_0_15px_rgba(200,150,46,0.2)]" :
                           hasAnyPermission ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" :
                           "bg-white/5 text-slate-400"
                         )}>
-                          {user.email ? user.email[0].toUpperCase() : '?'}
+                          {(user.name || user.email || '?')[0].toUpperCase()}
                         </div>
-                        <div className="max-w-[130px]">
-                          <p className="text-xs font-bold text-white truncate" title={user.email}>{user.email}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-white truncate" title={user.name || user.email}>
+                            {user.name || user.email}
+                          </p>
+                          {user.name && (
+                            <p className="text-[9px] text-slate-600 truncate" title={user.email}>{user.email}</p>
+                          )}
                           <p className="text-[9px] uppercase font-black">
                             {isProtected ? (
                               <span className="text-accent-gold">Super-Admin</span>

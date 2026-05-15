@@ -22,7 +22,7 @@ function TimeInput({ ch, value, onUpdate }: { ch: number, value: string, onUpdat
           e.stopPropagation();
           setIsEditing(true);
         }}
-        className="w-fit mx-auto px-4 flex items-center justify-center text-[clamp(0.9rem,4vw,1.4rem)] font-black tabular-nums tracking-tight text-slate-100 leading-none cursor-text hover:text-accent-gold transition-colors select-none"
+        className="w-fit mx-auto px-4 flex items-center justify-center text-[clamp(1.5rem,7vw,2.6rem)] font-black tabular-nums tracking-tight text-slate-100 leading-none cursor-text hover:text-accent-gold transition-colors select-none"
       >
         {value || '--:--'}
       </div>
@@ -52,7 +52,7 @@ function TimeInput({ ch, value, onUpdate }: { ch: number, value: string, onUpdat
         onUpdate(ch, formatted);
       }}
       style={{ width: '80px' }}
-      className="bg-transparent rounded text-center text-[clamp(0.9rem,4vw,1.4rem)] font-black tabular-nums tracking-tight text-white leading-none outline-none border-none mx-auto"
+      className="bg-transparent rounded text-center text-[clamp(1.5rem,7vw,2.6rem)] font-black tabular-nums tracking-tight text-white leading-none outline-none border-none mx-auto"
     />
   );
 }
@@ -251,10 +251,10 @@ export function CHPopoutView() {
              <div className="flex flex-col items-center w-full">
                 <TimeInput ch={ch} value={time} onUpdate={setCHTime} />
                 <span className={cn(
-                   "text-[7px] font-black tabular-nums mt-0.5 pointer-events-none",
+                   "text-[clamp(1.1rem,5vw,2rem)] font-black tabular-nums leading-none pointer-events-none",
                    diff !== null && diff < 60 ? "text-red-500/80" :
                    diff !== null && diff < 300 ? "text-accent-gold/80" :
-                   "text-slate-600"
+                   "text-slate-500"
                  )}>
                   {diff !== null ? formatDiff(diff).text : '--:--'}
                 </span>
