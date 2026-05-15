@@ -15,7 +15,7 @@ interface ChangelogItem {
 
 const CHANGELOG: ChangelogItem[] = [
   {
-    version: 'v5.0.0',
+    version: 'v1.0.0',
     date: '15 May 2026',
     changes: [
       // TCP Close
@@ -57,14 +57,7 @@ const CHANGELOG: ChangelogItem[] = [
       'Map Pop-out: harta ca widget independent, mereu patrata si centrata',
       'Always on Top Toggle: click-dreapta pe background pentru pin fereastra',
       'Player Indicators: badge-uri flotante pe harta pentru jucatorii marcati ca Going',
-    ],
-    type: 'feat'
-  },
-  {
-    version: 'v4.0.0',
-    date: '26 Apr 2026',
-    changes: [
-      'Lansare Release Candidate (RC1)',
+      // Dashboard & Team
       'Dashboard Interactiv cu analiza globala Boss si istoric activitate echipa',
       'Sistem Alerte Skin Reminder (24h / 6h / 4 zile)',
       'Management Echipa & sincronizare Firebase in timp real',
