@@ -1,4 +1,5 @@
 worker.js
+wrangler.toml
 wrangler.jsonc
 scripts/
 data/snapshots/
