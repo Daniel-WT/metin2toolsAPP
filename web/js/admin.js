@@ -185,25 +185,17 @@ window.AdminModule = {
 
             return `
                 <div style="padding:22px;background:rgba(255,255,255,0.02);border:1px solid ${borderColor};border-radius:18px;transition:border-color .2s;">
-                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
-                        <div style="display:flex;align-items:center;gap:14px;min-width:0;">
-                            <div style="width:46px;height:46px;border-radius:12px;background:${avatarBg};display:flex;align-items:center;justify-content:center;color:${avatarColor};font-weight:900;font-size:16px;flex-shrink:0;">
-                                ${u.email ? u.email[0].toUpperCase() : '?'}
-                            </div>
-                            <div style="min-width:0;">
-                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                    <h4 style="margin:0;color:#fff;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;" title="${u.name || u.email || ''}">${u.name || u.email?.split('@')[0] || 'Unknown'}</h4>
-                                    ${roleLabel}
-                                </div>
-                                <p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,0.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;" title="${u.email || ''}">${u.email || 'No email'}</p>
-                            </div>
+                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+                        <div style="width:46px;height:46px;border-radius:12px;background:${avatarBg};display:flex;align-items:center;justify-content:center;color:${avatarColor};font-weight:900;font-size:16px;flex-shrink:0;">
+                            ${u.email ? u.email[0].toUpperCase() : '?'}
                         </div>
-                        <div style="text-align:right;flex-shrink:0;">
-                            <span style="font-size:9px;color:rgba(255,255,255,0.2);text-transform:uppercase;font-weight:900;letter-spacing:.06em;">Echipă</span>
-                            <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;margin-top:2px;">
-                                <p style="margin:0;font-size:12px;color:#c8962e;font-weight:700;">${teamId || '—'}</p>
-                                ${teamRoleBadge}
+                        <div style="flex:1;min-width:0;">
+                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                                <h4 style="margin:0;color:#fff;font-size:14px;font-weight:700;">${u.name || u.email?.split('@')[0] || 'Unknown'}</h4>
+                                ${roleLabel}${teamRoleBadge}
                             </div>
+                            <p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,0.25);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${u.email || ''}">${u.email || 'No email'}</p>
+                            ${teamId ? `<p style="margin:3px 0 0;font-size:10px;color:rgba(200,150,46,0.7);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">${teamId}</p>` : ''}
                         </div>
                     </div>
                     ${permRow}
