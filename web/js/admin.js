@@ -40,6 +40,7 @@ window.AdminModule = {
         database.ref('teams').on('value', snap => {
             this.state.teams = snap.val() || {};
             if (this.state.activeTab === 'teams') this.renderTeams();
+            if (this.state.activeTab === 'users') this.renderUsers();
         });
 
         // Team Requests listener
