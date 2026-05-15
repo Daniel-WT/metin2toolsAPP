@@ -48,7 +48,7 @@
     },
     "bundle": {
       "active": true,
-      "targets": ["nsis"],
+      "targets": ["nsis", "updater"],
       "identifier": "com.posta.metin2tools",
       "icon": [
         "icons/32x32.png",
