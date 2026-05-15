@@ -100,7 +100,6 @@ window._initAuth = function() {
 
       // 2.5 Check if account is pending approval
       const pendingScreen = document.getElementById('account-pending-screen');
-      const isSA = window.currentUserProfile.isSuperAdmin;
       if (data.status === 'pending' && !isSA) {
         authGate.style.display = 'none';
         document.getElementById('team-gate').style.display = 'none';
