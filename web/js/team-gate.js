@@ -245,6 +245,14 @@ window.TeamGate = {
                     },
                     status: 'active'
                 });
+                await db.ref(`teams/${teamId}/members/${user.uid}`).set({
+                    uid: user.uid,
+                    name: window.currentUserProfile?.name || user.email.split('@')[0],
+                    email: user.email,
+                    role: 'leader',
+                    joinedAt: firebase.database.ServerValue.TIMESTAMP,
+                    permissions: { spawn: true, skin: true, inventory: true, alerte: true, status: true, transfers: true, checklist: true }
+                });
                 await db.ref(`users/${user.uid}`).update({
                     teamId: teamId,
                     currentTeamId: teamId,
