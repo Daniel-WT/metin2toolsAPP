@@ -33,8 +33,9 @@ jobs:
         working-directory: desktop
         run: npm install
 
-      - name: Prepare signing key
+      - name: Build Tauri app
         shell: pwsh
+        working-directory: desktop
         env:
           RAW_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
         run: |
@@ -42,28 +43,52 @@ jobs:
           if ($raw -match 'untrusted comment') {
             $normalized = $raw -replace "`r`n", "`n" -replace "`r", "`n"
             $bytes = [System.Text.Encoding]::UTF8.GetBytes($normalized)
-            $b64 = [Convert]::ToBase64String($bytes)
+            $env:TAURI_PRIVATE_KEY = [Convert]::ToBase64String($bytes)
           } else {
-            $b64 = ($raw -split '\s+' -join '')
+            $env:TAURI_PRIVATE_KEY = ($raw -split '\s+' -join '')
           }
-          # Use ASCII (no BOM) — PowerShell 5.1 Out-File utf8 adds BOM which breaks GITHUB_ENV parsing
-          $ascii = [System.Text.Encoding]::ASCII
-          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "TAURI_PRIVATE_KEY=$b64`nTAURI_KEY_PASSWORD=`n", $ascii)
-          Write-Host "Key ready (length=$($b64.Length))"
+          $env:TAURI_KEY_PASSWORD = ""
+          Write-Host "Key length: $($env:TAURI_PRIVATE_KEY.Length)"
+          npm run tauri build
 
-      - name: Build and release
-        uses: tauri-apps/tauri-action@v0
+      - name: Create GitHub Release
+        shell: pwsh
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ env.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ env.TAURI_KEY_PASSWORD }}
-        with:
-          projectPath: desktop
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Metin2 Tools ${{ github.ref_name }}'
-          releaseBody: |
-            ## Ce e nou in aceasta versiune
-            Vezi sectiunea Versiuni & Update din aplicatie pentru detalii complete.
-          releaseDraft: false
-          prerelease: false
-          includeUpdaterJson: true
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $bundleDir = "desktop\src-tauri\target\release\bundle\nsis"
+
+          $setupExe = (Get-ChildItem "$bundleDir\*_x64-setup.exe")[0].FullName
+          $nsisZip  = (Get-ChildItem "$bundleDir\*_x64-setup.nsis.zip" | Where-Object { $_.Extension -ne ".sig" })[0].FullName
+          $nsisSig  = (Get-ChildItem "$bundleDir\*_x64-setup.nsis.zip.sig")[0].FullName
+
+          Write-Host "Setup: $setupExe"
+          Write-Host "Zip:   $nsisZip"
+          Write-Host "Sig:   $nsisSig"
+
+          gh release create $tag $setupExe $nsisZip $nsisSig `
+            --title "Metin2 Tools $tag" `
+            --notes "## Ce e nou in aceasta versiune`nVezi sectiunea Versiuni & Update din aplicatie pentru detalii complete."
+
+          $version  = (Get-Content "desktop\src-tauri\tauri.conf.json" | ConvertFrom-Json).package.version
+          $sig      = (Get-Content $nsisSig -Raw).Trim()
+          $zipName  = Split-Path $nsisZip -Leaf
+          $dlUrl    = "https://github.com/Daniel-WT/metin2toolsAPP/releases/download/$tag/$zipName"
+          $pubDate  = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+
+          $latestJson = [ordered]@{
+            version   = $version
+            notes     = "Actualizare disponibila"
+            pub_date  = $pubDate
+            platforms = [ordered]@{
+              "windows-x86_64" = [ordered]@{
+                signature = $sig
+                url       = $dlUrl
+              }
+            }
+          } | ConvertTo-Json -Depth 10
+
+          $latestJson | Out-File -FilePath "latest.json" -Encoding ascii -NoNewline
+          gh release upload $tag "latest.json"
+          Write-Host "Release $tag creat cu succes."
