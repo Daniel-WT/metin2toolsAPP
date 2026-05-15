@@ -1,11 +1,13 @@
 // ============ INIT ============
 console.log("[App] Starting application...");
-if (typeof window.autoInitFirebase === 'function') {
-  window.autoInitFirebase();
-}
-if (typeof window._initAuth === 'function') {
-  window._initAuth();
-}
+(async () => {
+  if (typeof window.autoInitFirebase === 'function') {
+    await window.autoInitFirebase();
+  }
+  if (typeof window._initAuth === 'function') {
+    window._initAuth();
+  }
+})();
 
 load();
 loadAlerts();

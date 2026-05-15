@@ -18,7 +18,7 @@ async function getGoogleAccessToken(serviceAccountJson) {
   const b64url = (obj) => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   const signingInput = b64url({ alg: 'RS256', typ: 'JWT' }) + '.' + b64url({
     iss: sa.client_email,
-    scope: 'https://www.googleapis.com/auth/identitytoolkit',
+    scope: 'https://www.googleapis.com/auth/cloud-platform',
     aud: 'https://oauth2.googleapis.com/token',
     exp: now + 3600,
     iat: now
@@ -154,8 +154,12 @@ export default {
         if (!uid) return new Response(JSON.stringify({ ok: false, error: 'Missing uid' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
         const accessToken = await getGoogleAccessToken(env.FIREBASE_SERVICE_ACCOUNT);
         const authRes = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/projects/${env.FB_PROJECT_ID}/accounts/${uid}`,
-          { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } }
+          `https://identitytoolkit.googleapis.com/v1/projects/${env.FB_PROJECT_ID}/accounts:batchDelete`,
+          {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ localIds: [uid], force: true })
+          }
         );
         if (!authRes.ok) {
           const err = await authRes.text();
