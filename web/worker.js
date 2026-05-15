@@ -154,8 +154,8 @@ export default {
         if (!uid) return new Response(JSON.stringify({ ok: false, error: 'Missing uid' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
         const accessToken = await getGoogleAccessToken(env.FIREBASE_SERVICE_ACCOUNT);
         const authRes = await fetch(
-          `https://identitytoolkit.googleapis.com/v1/projects/${env.FB_PROJECT_ID}/accounts/${uid}:delete`,
-          { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: '{}' }
+          `https://identitytoolkit.googleapis.com/v1/projects/${env.FB_PROJECT_ID}/accounts/${uid}`,
+          { method: 'DELETE', headers: { 'Authorization': `Bearer ${accessToken}` } }
         );
         if (!authRes.ok) {
           const err = await authRes.text();
