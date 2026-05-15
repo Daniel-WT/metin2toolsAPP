@@ -3,7 +3,6 @@ window.AdminModule = {
         users: {},
         teams: {},
         requests: {},
-        userRequests: {},
         banned: {},
         activeTab: 'users',
         logs: []
@@ -40,18 +39,11 @@ window.AdminModule = {
         database.ref('teams').on('value', snap => {
             this.state.teams = snap.val() || {};
             if (this.state.activeTab === 'teams') this.renderTeams();
-            if (this.state.activeTab === 'users') this.renderUsers();
         });
 
         // Team Requests listener
         database.ref('team_requests').on('value', snap => {
             this.state.requests = snap.val() || {};
-            if (this.state.activeTab === 'requests') this.renderRequests();
-        });
-
-        // User Account Requests listener
-        database.ref('user_requests').on('value', snap => {
-            this.state.userRequests = snap.val() || {};
             if (this.state.activeTab === 'requests') this.renderRequests();
         });
 
@@ -186,17 +178,25 @@ window.AdminModule = {
 
             return `
                 <div style="padding:22px;background:rgba(255,255,255,0.02);border:1px solid ${borderColor};border-radius:18px;transition:border-color .2s;">
-                    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-                        <div style="width:46px;height:46px;border-radius:12px;background:${avatarBg};display:flex;align-items:center;justify-content:center;color:${avatarColor};font-weight:900;font-size:16px;flex-shrink:0;">
-                            ${u.email ? u.email[0].toUpperCase() : '?'}
-                        </div>
-                        <div style="flex:1;min-width:0;">
-                            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                                <h4 style="margin:0;color:#fff;font-size:14px;font-weight:700;">${u.name || u.email?.split('@')[0] || 'Unknown'}</h4>
-                                ${roleLabel}${teamRoleBadge}
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:14px;min-width:0;">
+                            <div style="width:46px;height:46px;border-radius:12px;background:${avatarBg};display:flex;align-items:center;justify-content:center;color:${avatarColor};font-weight:900;font-size:16px;flex-shrink:0;">
+                                ${u.email ? u.email[0].toUpperCase() : '?'}
                             </div>
-                            <p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,0.25);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${u.email || ''}">${u.email || 'No email'}</p>
-                            ${teamId ? `<p style="margin:3px 0 0;font-size:10px;color:rgba(200,150,46,0.7);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">${teamId}</p>` : ''}
+                            <div style="min-width:0;">
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                    <h4 style="margin:0;color:#fff;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="${u.name || ''}">${u.name || u.email?.split('@')[0] || 'Unknown'}</h4>
+                                    ${roleLabel}
+                                </div>
+                                <p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,0.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;" title="${u.email || ''}">${u.email || 'No email'}</p>
+                            </div>
+                        </div>
+                        <div style="text-align:right;flex-shrink:0;">
+                            <span style="font-size:9px;color:rgba(255,255,255,0.2);text-transform:uppercase;font-weight:900;letter-spacing:.06em;">Echipă</span>
+                            <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;margin-top:2px;">
+                                <p style="margin:0;font-size:12px;color:#c8962e;font-weight:700;">${teamId || '—'}</p>
+                                ${teamRoleBadge}
+                            </div>
                         </div>
                     </div>
                     ${permRow}
@@ -290,50 +290,33 @@ window.AdminModule = {
         const grid = document.getElementById('adminRequestGrid');
         if (!grid) return;
 
-        const userReqs = Object.entries(this.state.userRequests);
-        const teamReqs = Object.entries(this.state.requests);
+        const requests = Object.entries(this.state.requests);
 
-        const cardStyle = `padding:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;`;
-        const btnReject = (fn, id) => `<button onclick="${fn}('${id}')" style="background:rgba(224,82,82,0.1);color:#e05252;border:1px solid rgba(224,82,82,0.2);padding:10px 16px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;white-space:nowrap;">Reject</button>`;
-        const btnApprove = (fn, id) => `<button onclick="${fn}('${id}')" style="background:#c8962e;color:#0a0b0e;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:1px;white-space:nowrap;">Approve</button>`;
+        if (requests.length === 0) {
+            grid.innerHTML = `<div class="admin-empty-state"><p>Nicio cerere în așteptare.</p></div>`;
+            return;
+        }
 
-        const userCards = userReqs.map(([uid, req]) => `
-            <div class="card" style="${cardStyle}">
-                <div style="display:flex;align-items:center;gap:16px;min-width:0;">
-                    <div style="width:48px;height:48px;flex-shrink:0;border-radius:12px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);display:flex;align-items:center;justify-content:center;color:#3b82f6;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </div>
-                    <div style="min-width:0;">
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                            <h4 style="margin:0;color:#fff;">${req.email || uid}</h4>
-                            <span style="font-size:9px;color:rgba(59,130,246,0.6);font-weight:900;text-transform:uppercase;background:rgba(59,130,246,0.1);padding:2px 6px;border-radius:4px;">CONT NOU</span>
-                        </div>
-                        <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.4);">UID: ${uid.slice(0,12)}...</p>
-                    </div>
-                </div>
-                <div style="display:flex;gap:10px;flex-shrink:0;">${btnReject('AdminModule.rejectUser', uid)}${btnApprove('AdminModule.approveUser', uid)}</div>
-            </div>
-        `).join('');
-
-        const teamCards = teamReqs.map(([id, req]) => `
-            <div class="card" style="${cardStyle}">
-                <div style="display:flex;align-items:center;gap:16px;min-width:0;">
-                    <div style="width:48px;height:48px;flex-shrink:0;border-radius:12px;background:rgba(200,150,46,0.1);border:1px solid rgba(200,150,46,0.2);display:flex;align-items:center;justify-content:center;color:#c8962e;">
+        grid.innerHTML = requests.map(([id, req]) => `
+            <div class="card" style="padding: 20px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="display:flex; align-items:center; gap:16px;">
+                    <div style="width:48px; height:48px; border-radius:12px; background:rgba(200,150,46,0.1); border:1px solid rgba(200,150,46,0.2); display:flex; align-items:center; justify-content:center; color:#c8962e;">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
                     </div>
-                    <div style="min-width:0;">
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                            <h4 style="margin:0;color:#fff;">${req.name}</h4>
-                            <span style="font-size:9px;color:rgba(255,255,255,0.3);font-weight:900;text-transform:uppercase;">REQ: ${id}</span>
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <h4 style="margin:0; color:#fff;">${req.name}</h4>
+                            <span style="font-size:9px; color:rgba(255,255,255,0.3); font-weight:900; text-transform:uppercase;">REQ: ${id}</span>
                         </div>
-                        <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.4);">Solicitat de: ${req.userEmail}</p>
+                        <p style="margin:4px 0 0; font-size:12px; color:rgba(255,255,255,0.4);">Solicitat de: ${req.userEmail}</p>
                     </div>
                 </div>
-                <div style="display:flex;gap:10px;flex-shrink:0;">${btnReject('AdminModule.rejectTeam', id)}${btnApprove('AdminModule.approveTeam', id)}</div>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="AdminModule.rejectTeam('${id}')" style="background:rgba(224,82,82,0.1); color:#e05252; border:1px solid rgba(224,82,82,0.2); padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:700; font-size:12px;">Reject</button>
+                    <button onclick="AdminModule.approveTeam('${id}')" style="background:#c8962e; color:#0a0b0e; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:900; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Approve</button>
+                </div>
             </div>
         `).join('');
-
-        grid.innerHTML = (userCards + teamCards) || `<div class="admin-empty-state"><p>Nicio cerere în așteptare.</p></div>`;
     },
 
     // --- Actions ---
@@ -397,24 +380,11 @@ window.AdminModule = {
 
     deleteAccount: async function(uid) {
         if (!window.currentUserProfile?.isSuperAdmin) return;
-        if (!confirm("ATENȚIE! Ești pe cale să ștergi DEFINITIV acest cont (baza de date + autentificare). Această acțiune nu poate fi anulată. Continui?")) return;
-        try {
-            const res = await fetch('/api/delete-user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid })
-            });
-            const data = await res.json();
-            if (data.ok) {
-                if (typeof showToast === 'function') showToast("Cont șters complet (baza de date + autentificare).", "success");
-            } else {
-                await firebase.database().ref(`users/${uid}`).remove();
-                if (typeof showToast === 'function') showToast("Date șterse, dar Auth a eșuat: " + (data.error || 'eroare necunoscută'), "warning");
-            }
-        } catch (e) {
-            await firebase.database().ref(`users/${uid}`).remove();
-            if (typeof showToast === 'function') showToast("Date șterse din baza de date (Auth indisponibil).", "warning");
-        }
+        if (!confirm("ATENȚIE! Ești pe cale să ștergi DEFINITIV acest cont din baza de date. Această acțiune nu poate fi anulată. Continui?")) return;
+        
+        // This only removes from RTDB. Firebase Auth deletion requires Admin SDK or user re-auth.
+        await firebase.database().ref(`users/${uid}`).remove();
+        if (typeof showToast === 'function') showToast("Profilul utilizatorului a fost șters din baza de date.", "warning");
     },
 
     removeMember: async function(uid) {
@@ -475,40 +445,6 @@ window.AdminModule = {
         } catch (e) {
             console.error(e);
             alert("Eroare la aprobare.");
-        }
-    },
-
-    approveUser: async function(uid) {
-        if (!confirm("Aprobi accesul acestui utilizator?")) return;
-        try {
-            await firebase.database().ref(`users/${uid}`).update({ status: 'approved' });
-            await firebase.database().ref(`user_requests/${uid}`).remove();
-            if (typeof showToast === 'function') showToast("Cont aprobat!", "success");
-        } catch (e) {
-            alert("Eroare la aprobare: " + e.message);
-        }
-    },
-
-    rejectUser: async function(uid) {
-        if (!confirm("Respingi și ștergi acest cont?")) return;
-        try {
-            const res = await fetch('/api/delete-user', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid })
-            });
-            const data = await res.json();
-            await firebase.database().ref(`user_requests/${uid}`).remove();
-            if (data.ok) {
-                if (typeof showToast === 'function') showToast("Cont respins și șters.", "error");
-            } else {
-                await firebase.database().ref(`users/${uid}`).remove();
-                if (typeof showToast === 'function') showToast("Cerere respinsă (Auth: " + (data.error || 'eroare') + ")", "warning");
-            }
-        } catch (e) {
-            await firebase.database().ref(`user_requests/${uid}`).remove();
-            await firebase.database().ref(`users/${uid}`).remove();
-            if (typeof showToast === 'function') showToast("Cerere respinsă.", "warning");
         }
     },
 

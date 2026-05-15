@@ -97,20 +97,6 @@
   </div>
 </div>
 <!-- TEAM SELECTION GATE -->
-<div id="account-pending-screen" style="display:none;position:fixed;inset:0;z-index:99999;background:#0a0b0e;align-items:center;justify-content:center;font-family:'Inter',sans-serif;padding:24px;flex-direction:column;gap:0;">
-  <div style="width:100%;max-width:380px;text-align:center;">
-    <div style="width:72px;height:72px;margin:0 auto 28px;position:relative;">
-      <div style="position:absolute;inset:0;background:rgba(200,150,46,0.2);border-radius:50%;filter:blur(20px);animation:pulse 2s infinite;"></div>
-      <div style="position:relative;width:100%;height:100%;background:#0c0c0e;border:1px solid rgba(200,150,46,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c8962e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      </div>
-    </div>
-    <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 10px;">Cont în așteptare</h2>
-    <p style="color:rgba(255,255,255,0.4);font-size:13px;line-height:1.7;margin:0 0 32px;">Cererea ta a fost trimisă. Un <span style="color:#c8962e;font-weight:700;">Super-Admin</span> va aproba accesul tău în curând.</p>
-    <button onclick="firebase.auth().signOut()" style="padding:12px 28px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.4);font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;">Logout</button>
-  </div>
-</div>
-
 <div id="team-gate" style="display:none;position:fixed;inset:0;z-index:99998;background:#0a0b0e;align-items:center;justify-content:center;font-family:'Inter',sans-serif;padding:24px;">
   <div style="position:absolute;inset:0;background:radial-gradient(circle at center, rgba(200,150,46,0.05) 0%, transparent 70%);"></div>
   

@@ -18,6 +18,7 @@ window.TeamGate = {
     },
 
     updateUserInfo: function() {
+        if (!window.firebase || !firebase.apps || !firebase.apps.length) return;
         const user = firebase.auth().currentUser;
         if (!user) return;
         const emailEl = document.getElementById('user-gate-email');
@@ -216,7 +217,7 @@ window.TeamGate = {
         const idInput = document.getElementById('create-team-id');
         const teamName = nameInput ? nameInput.value.trim() : '';
         const teamId = idInput ? idInput.value.trim().toLowerCase().replace(/\s+/g, '-') : '';
-        
+
         if (!teamName || !teamId) {
             this.setError("Please fill all fields.");
             return;
@@ -231,10 +232,10 @@ window.TeamGate = {
 
         try {
             const user = firebase.auth().currentUser;
-            const isSuperAdmin = window.currentUserProfile && window.currentUserProfile.isSuperAdmin;
+            const isSuperAdmin = user.email === 'postavarudaniel@gmail.com' || window.currentUserProfile?.isSuperAdmin;
 
             if (isSuperAdmin) {
-                // Super-admin bypasses the request queue and creates the team directly
+                // Super Admin creaza echipa direct, fara aprobare
                 await db.ref(`teams/${teamId}`).set({
                     id: teamId,
                     metadata: {
@@ -245,33 +246,24 @@ window.TeamGate = {
                     },
                     status: 'active'
                 });
-                await db.ref(`teams/${teamId}/members/${user.uid}`).set({
-                    uid: user.uid,
-                    name: window.currentUserProfile?.name || user.email.split('@')[0],
-                    email: user.email,
-                    role: 'leader',
-                    joinedAt: firebase.database.ServerValue.TIMESTAMP,
-                    permissions: { spawn: true, skin: true, inventory: true, alerte: true, status: true, transfers: true, checklist: true }
-                });
                 await db.ref(`users/${user.uid}`).update({
                     teamId: teamId,
                     currentTeamId: teamId,
                     role: 'leader'
                 });
-                location.reload();
-                return;
+                if (typeof showToast === 'function') showToast('Echipă creată cu succes!', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                await db.ref(`team_requests/${teamId}`).set({
+                    id: teamId,
+                    name: teamName,
+                    requestedBy: user.uid,
+                    userEmail: user.email,
+                    status: 'pending',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                this.showPending();
             }
-
-            await db.ref(`team_requests/${teamId}`).set({
-                id: teamId,
-                name: teamName,
-                requestedBy: user.uid,
-                userEmail: user.email,
-                status: 'pending',
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
-
-            this.showPending();
         } catch (e) {
             console.error(e);
             this.setError("Error submitting request.");
@@ -279,6 +271,41 @@ window.TeamGate = {
                 btn.disabled = false;
                 btn.textContent = 'Submit Request';
             }
+        }
+    },
+
+    // Apelat din auth.js cand Super Admin nu are echipa — aproba automat cererea pendinta
+    autoApprovePendingRequest: async function(uid) {
+        try {
+            const snap = await db.ref('team_requests').once('value');
+            if (!snap.exists()) return;
+            let found = false;
+            snap.forEach(child => {
+                if (found) return true;
+                const data = child.val();
+                if (data && data.requestedBy === uid) {
+                    found = true;
+                    const requestId = child.key;
+                    db.ref(`teams/${requestId}`).set({
+                        id: requestId,
+                        metadata: {
+                            name: data.name,
+                            inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
+                            ownerId: uid,
+                            createdAt: firebase.database.ServerValue.TIMESTAMP
+                        },
+                        status: 'active'
+                    }).then(() => Promise.all([
+                        db.ref(`users/${uid}`).update({ teamId: requestId, currentTeamId: requestId, role: 'leader' }),
+                        db.ref(`team_requests/${requestId}`).remove()
+                    ])).then(() => {
+                        if (typeof showToast === 'function') showToast('Echipă activată automat!', 'success');
+                        setTimeout(() => location.reload(), 800);
+                    });
+                }
+            });
+        } catch(e) {
+            console.error('[TeamGate] autoApprovePendingRequest error:', e);
         }
     },
 

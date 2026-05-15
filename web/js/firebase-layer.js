@@ -103,7 +103,6 @@ function initFirebase(config) {
       // 3. Spawn
       db.ref(`teams/${teamId}/spawn/data`).on('value', snap => {
         const val = snap.val();
-        console.log('[Sync] Spawn data received from Firebase:', val ? Object.keys(val) : 'null');
         window._fbSpawnLoaded = true; // unblock saves even when Firebase has no data yet
         if (!val) return;
         if (!spawnData) spawnData = {};
@@ -271,15 +270,14 @@ function initPresence() {
   ref.onDisconnect().remove();
 }
 
-// Auto-connect helper — loads config from Worker secrets, never hardcoded
-window.autoInitFirebase = async function() {
-  try {
-    const res = await fetch('/firebase-config');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const config = await res.json();
-    if (!config.apiKey) throw new Error('Config invalid');
-    initFirebase(config);
-  } catch (e) {
-    console.error('[Firebase] Failed to load config:', e);
-  }
+// Auto-connect helper
+window.autoInitFirebase = function() {
+  const testConfig = {
+    apiKey: "AIzaSyBRemmnHO90OtrQsexkguEYgl3AQ7aMH_Y",
+    authDomain: "metin2-tools-testing.firebaseapp.com",
+    databaseURL: "https://metin2-tools-testing-default-rtdb.europe-west1.firebasedatabase.app/",
+    projectId: "metin2-tools-testing",
+    appId: "1:751154954780:web:ac491ff86c6e6461d4d5"
+  };
+  initFirebase(testConfig);
 };

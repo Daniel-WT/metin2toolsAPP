@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { open } from '@tauri-apps/api/dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/api/fs';
 import { invoke } from '@tauri-apps/api/tauri';
-import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X, Layers } from 'lucide-react';
+import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X, Sliders } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { register, unregister } from '@tauri-apps/api/globalShortcut';
 
@@ -22,6 +22,25 @@ interface Preset {
   custom?: boolean;
 }
 
+interface GraphicPreset {
+  id: string;
+  label: string;
+  settings: Record<string, string>;
+  custom?: boolean;
+}
+
+const GFX_SETTINGS = [
+  { key: 'SHADOW_RENDER_QUALITY', label: 'Calitate Umbre', values: ['0', '1', '2'], valueLabels: ['Off', 'Low', 'High'] },
+  { key: 'CHARACTER_SHADOW_ENABLE', label: 'Umbre Personaj', values: ['0', '1'], valueLabels: ['Off', 'On'] },
+  { key: 'BPP', label: 'Adâncime Culori', values: ['16', '32'], valueLabels: ['16 bpp', '32 bpp'] },
+];
+
+const DEFAULT_GFX_PRESETS: GraphicPreset[] = [
+  { id: 'gfx_low', label: 'Performance', settings: { SHADOW_RENDER_QUALITY: '0', CHARACTER_SHADOW_ENABLE: '0', BPP: '16' } },
+  { id: 'gfx_bal', label: 'Balanced',    settings: { SHADOW_RENDER_QUALITY: '1', CHARACTER_SHADOW_ENABLE: '0', BPP: '32' } },
+  { id: 'gfx_hi',  label: 'Quality',     settings: { SHADOW_RENDER_QUALITY: '2', CHARACTER_SHADOW_ENABLE: '1', BPP: '32' } },
+];
+
 const DEFAULT_PRESETS: Preset[] = [
   { id: 'd1', w: 640,  h: 480,  label: 'Low' },
   { id: 'd2', w: 640,  h: 540,  label: 'Classic' },
@@ -39,6 +58,7 @@ const LS_PRESETS        = 'm2tweaks_presets';
 const LS_HIDDEN_DEFAULT = 'm2tweaks_hidden';
 const LS_ORDER          = 'm2tweaks_order';
 const LS_TCP_BINDINGS   = 'm2_tcp_bindings';
+const LS_GFX_PRESETS    = 'm2tweaks_gfx_presets';
 
 function loadCustomPresets(): Preset[]   { try { return JSON.parse(localStorage.getItem(LS_PRESETS) || '[]'); } catch { return []; } }
 function saveCustomPresets(v: Preset[])  { localStorage.setItem(LS_PRESETS, JSON.stringify(v)); }
@@ -51,8 +71,6 @@ export default function Tweaks() {
   const [cfgPath, setCfgPath]               = useState<string | null>(null);
   const [currentW, setCurrentW]             = useState<number | null>(null);
   const [currentH, setCurrentH]             = useState<number | null>(null);
-  const [graphicsMode, setGraphicsMode]     = useState<'optimized' | 'normal' | 'custom' | null>(null);
-  const [applyingGfx, setApplyingGfx]       = useState(false);
   const [customW, setCustomW]               = useState('');
   const [customH, setCustomH]               = useState('');
   const [toast, setToast]                   = useState<{ msg: string; ok: boolean } | null>(null);
@@ -63,6 +81,14 @@ export default function Tweaks() {
   const [newW, setNewW]                     = useState('');
   const [newH, setNewH]                     = useState('');
   const [newLabel, setNewLabel]             = useState('');
+
+  // ── Graphic presets state ─────────────────────────────────────────────
+  const [gfxSettings, setGfxSettings]           = useState<Record<string, string>>({});
+  const [customGfxPresets, setCustomGfxPresets] = useState<GraphicPreset[]>(() => {
+    try { return JSON.parse(localStorage.getItem(LS_GFX_PRESETS) || '[]'); } catch { return []; }
+  });
+  const [newGfxLabel, setNewGfxLabel]           = useState('');
+  const [applyingGfx, setApplyingGfx]           = useState<string | null>(null);
 
   // ── Window renamer state ──────────────────────────────────────────────
   const [m2wins, setM2wins]       = useState<Metin2Win[]>([]);
@@ -232,16 +258,13 @@ export default function Tweaks() {
       setCfgPath(path);
       setCurrentW(parseInt(wMatch[1]));
       setCurrentH(parseInt(hMatch[1]));
-      const eMatch  = content.match(/EFFECT_LEVEL\s+(\d+)/);
-      const psMatch = content.match(/PRIVATE_SHOP_LEVEL\s+(\d+)/);
-      const diMatch = content.match(/DROP_ITEM_LEVEL\s+(\d+)/);
-      const eVal  = eMatch  ? parseInt(eMatch[1])  : null;
-      const psVal = psMatch ? parseInt(psMatch[1]) : null;
-      const diVal = diMatch ? parseInt(diMatch[1]) : null;
-      if (eVal === 4 && psVal === 4 && diVal === 4) setGraphicsMode('optimized');
-      else if (eVal === 0 && psVal === 0 && diVal === 0) setGraphicsMode('normal');
-      else if (eVal !== null) setGraphicsMode('custom');
-      else setGraphicsMode(null);
+      // Read graphic settings
+      const gfxVals: Record<string, string> = {};
+      GFX_SETTINGS.forEach(({ key }) => {
+        const m = content.match(new RegExp(`${key}\\s+(\\S+)`));
+        if (m) gfxVals[key] = m[1];
+      });
+      setGfxSettings(gfxVals);
     } catch (e) {
       console.error('[Tweaks] Read error:', e);
       showToast('Nu s-a putut citi fisierul.', false);
@@ -267,26 +290,6 @@ export default function Tweaks() {
       showToast('Eroare la scrierea fisierului.', false);
     } finally {
       setApplying(null);
-    }
-  }
-
-  async function applyGraphicsMode(optimized: boolean) {
-    if (!cfgPath) { showToast('Selecteaza mai intai metin2.cfg.', false); return; }
-    setApplyingGfx(true);
-    try {
-      const content = await readTextFile(cfgPath);
-      const val = optimized ? 4 : 0;
-      const updated = content
-        .replace(/(EFFECT_LEVEL\s+)\d+/, `$1${val}`)
-        .replace(/(PRIVATE_SHOP_LEVEL\s+)\d+/, `$1${val}`)
-        .replace(/(DROP_ITEM_LEVEL\s+)\d+/, `$1${val}`);
-      await writeTextFile(cfgPath, updated);
-      setGraphicsMode(optimized ? 'optimized' : 'normal');
-      showToast(optimized ? 'Mod Optimizat aplicat.' : 'Mod Normal aplicat.');
-    } catch {
-      showToast('Eroare la scrierea fisierului.', false);
-    } finally {
-      setApplyingGfx(false);
     }
   }
 
@@ -321,6 +324,45 @@ export default function Tweaks() {
     const updatedOrder = order.filter(oid => oid !== id);
     setOrder(updatedOrder);
     saveOrder(updatedOrder);
+  }
+
+  async function applyGfxPreset(preset: GraphicPreset) {
+    if (!cfgPath) { showToast('Selecteaza mai intai metin2.cfg.', false); return; }
+    setApplyingGfx(preset.id);
+    try {
+      let content = await readTextFile(cfgPath);
+      for (const [key, value] of Object.entries(preset.settings)) {
+        const regex = new RegExp(`(${key}\\s+)\\S+`);
+        if (regex.test(content)) {
+          content = content.replace(regex, `$1${value}`);
+        }
+      }
+      await writeTextFile(cfgPath, content);
+      setGfxSettings(prev => ({ ...prev, ...preset.settings }));
+      showToast(`Profil "${preset.label}" aplicat.`);
+    } catch {
+      showToast('Eroare la aplicarea profilului grafic.', false);
+    } finally {
+      setApplyingGfx(null);
+    }
+  }
+
+  function saveGfxPreset() {
+    const label = newGfxLabel.trim();
+    if (!label) { showToast('Introdu un nume pentru preset.', false); return; }
+    if (Object.keys(gfxSettings).length === 0) { showToast('Incarca mai intai metin2.cfg.', false); return; }
+    const preset: GraphicPreset = { id: Date.now().toString(), label, settings: { ...gfxSettings }, custom: true };
+    const updated = [...customGfxPresets, preset];
+    setCustomGfxPresets(updated);
+    localStorage.setItem(LS_GFX_PRESETS, JSON.stringify(updated));
+    setNewGfxLabel('');
+    showToast(`Preset "${label}" salvat.`);
+  }
+
+  function deleteGfxPreset(id: string) {
+    const updated = customGfxPresets.filter(p => p.id !== id);
+    setCustomGfxPresets(updated);
+    localStorage.setItem(LS_GFX_PRESETS, JSON.stringify(updated));
   }
 
   async function scanWindows() {
@@ -759,56 +801,100 @@ export default function Tweaks() {
         </div>
       </div>
 
-      {/* ── Optimizare Grafica ──────────────────────────────────── */}
-      <div className="card space-y-5">
-        <div className="flex items-center gap-3">
+      {/* ── Graphic Optimization Presets ────────────────────────── */}
+      <div className="card space-y-6">
+        <div className="flex items-center gap-3 mb-2">
           <div className="p-2.5 rounded-xl bg-accent-gold/10 border border-accent-gold/20">
-            <Layers className="w-5 h-5 text-accent-gold" />
+            <Sliders className="w-5 h-5 text-accent-gold" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-100 font-display">Optimizare Grafica</h3>
-            <p className="text-slate-500 text-xs">Ascunde efecte, magazine private si drop items pentru performanta maxima</p>
+            <h3 className="font-bold text-slate-100 font-display">Optimizări Grafice</h3>
+            <p className="text-slate-500 text-xs">Preseturi de performanță aplicate direct în metin2.cfg</p>
           </div>
         </div>
 
-        <div className={cn('grid grid-cols-2 gap-3 transition-opacity', !cfgPath && 'opacity-30 pointer-events-none')}>
-          <button
-            onClick={() => applyGraphicsMode(false)}
-            disabled={applyingGfx || graphicsMode === 'normal'}
-            className={cn(
-              'flex flex-col items-center gap-2 py-5 rounded-xl border transition-all font-display',
-              graphicsMode === 'normal'
-                ? 'bg-accent-gold/10 border-accent-gold/40 text-accent-gold cursor-default'
-                : 'bg-bg-secondary border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-100 hover:bg-white/[0.02]',
-              applyingGfx && 'opacity-50'
-            )}
-          >
-            <span className="text-base font-black uppercase tracking-wider">Normal</span>
-            <span className="text-[10px] font-bold text-current opacity-60">Efecte + Shop + Drop vizibile</span>
-          </button>
+        {/* Current gfx values */}
+        {Object.keys(gfxSettings).length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {GFX_SETTINGS.map(({ key, label, valueLabels, values }) => {
+              const val = gfxSettings[key];
+              const idx = val ? values.indexOf(val) : -1;
+              const displayLabel = idx >= 0 ? valueLabels[idx] : (val ?? '—');
+              return (
+                <div key={key} className="px-3 py-2.5 rounded-xl bg-bg-secondary border border-white/5 text-center">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 mb-1">{label}</p>
+                  <p className="text-sm font-bold text-accent-gold font-display">{displayLabel}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-          <button
-            onClick={() => applyGraphicsMode(true)}
-            disabled={applyingGfx || graphicsMode === 'optimized'}
-            className={cn(
-              'flex flex-col items-center gap-2 py-5 rounded-xl border transition-all font-display',
-              graphicsMode === 'optimized'
-                ? 'bg-accent-gold/10 border-accent-gold/40 text-accent-gold cursor-default'
-                : 'bg-bg-secondary border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-100 hover:bg-white/[0.02]',
-              applyingGfx && 'opacity-50'
-            )}
-          >
-            <span className="text-base font-black uppercase tracking-wider">Optimizat</span>
-            <span className="text-[10px] font-bold text-current opacity-60">Efecte + Shop + Drop ascunse</span>
-          </button>
+        {/* Presets grid */}
+        <div className={cn('grid grid-cols-3 gap-3 transition-opacity', !cfgPath && 'opacity-30 pointer-events-none')}>
+          {[...DEFAULT_GFX_PRESETS, ...customGfxPresets].map(preset => {
+            const isLoading = applyingGfx === preset.id;
+            const isActive = Object.entries(preset.settings).every(([k, v]) => gfxSettings[k] === v);
+            return (
+              <div key={preset.id} className="relative group">
+                <button
+                  onClick={() => applyGfxPreset(preset)}
+                  disabled={!!applyingGfx}
+                  className={cn(
+                    'w-full flex flex-col items-center justify-center gap-1 py-4 rounded-xl border transition-all',
+                    isActive
+                      ? 'bg-accent-gold/10 border-accent-gold/40 text-accent-gold'
+                      : 'bg-bg-secondary border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-100 hover:bg-white/[0.02]',
+                    isLoading && 'animate-pulse',
+                    applyingGfx && !isLoading && 'opacity-50'
+                  )}
+                >
+                  <Sliders className={cn('w-4 h-4', isActive ? 'text-accent-gold' : 'text-slate-600')} />
+                  <span className={cn(
+                    'text-[10px] font-black uppercase tracking-widest mt-1',
+                    isActive ? 'text-accent-gold/70' : 'text-slate-600'
+                  )}>
+                    {preset.label}
+                  </span>
+                </button>
+                {preset.custom && (
+                  <button
+                    onClick={() => deleteGfxPreset(preset.id)}
+                    className="absolute top-1.5 right-1.5 w-5 h-5 rounded-md text-slate-600 hover:bg-red-500/20 hover:text-red-400 transition-all opacity-0 group-hover:opacity-100 flex items-center justify-center"
+                    title="Sterge preset"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {graphicsMode === 'custom' && (
-          <p className="text-[11px] text-slate-600 font-medium">Valori personalizate detectate in cfg. Alege un mod pentru a aplica.</p>
-        )}
-        {!cfgPath && (
-          <p className="text-[11px] text-slate-600 font-medium">Selecteaza metin2.cfg din sectiunea de mai sus.</p>
-        )}
+        {/* Save current as preset */}
+        <div className="space-y-3 pt-4 border-t border-white/5">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Salvează Setările Curente</p>
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              placeholder="Nume preset (ex: FPS Max)"
+              value={newGfxLabel}
+              onChange={e => setNewGfxLabel(e.target.value)}
+              maxLength={16}
+              className="flex-1 px-3 py-2 rounded-lg bg-bg-secondary border border-white/5 text-slate-100 text-sm focus:outline-none focus:border-accent-gold/30"
+            />
+            <button
+              onClick={saveGfxPreset}
+              disabled={!cfgPath || Object.keys(gfxSettings).length === 0}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent-gold text-bg-primary text-sm font-black uppercase tracking-wider hover:bg-accent-gold/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" /> Salvează
+            </button>
+          </div>
+          {!cfgPath && (
+            <p className="text-xs text-slate-600">Selectează metin2.cfg mai sus pentru a activa preseturile grafice.</p>
+          )}
+        </div>
       </div>
 
       {/* ── Window Title Changer ─────────────────────────────────── */}

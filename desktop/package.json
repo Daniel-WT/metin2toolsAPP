@@ -2,7 +2,7 @@
   "name": "metin2tools",
   "productName": "metin2tools",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
