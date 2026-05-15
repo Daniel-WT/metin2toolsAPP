@@ -11,6 +11,33 @@ const ALLOWED_IPS = new Set([
   '79.110.92.90','79.110.92.91','79.110.92.101', // Polska
 ]);
 
+// ── Firebase Auth helper (service account → access token) ──
+async function getGoogleAccessToken(serviceAccountJson) {
+  const sa = typeof serviceAccountJson === 'string' ? JSON.parse(serviceAccountJson) : serviceAccountJson;
+  const now = Math.floor(Date.now() / 1000);
+  const b64url = (obj) => btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const signingInput = b64url({ alg: 'RS256', typ: 'JWT' }) + '.' + b64url({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/identitytoolkit',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now
+  });
+  const keyData = sa.private_key.replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace(/\n/g, '');
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8', Uint8Array.from(atob(keyData), c => c.charCodeAt(0)),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signingInput));
+  const jwt = signingInput + '.' + btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${jwt}`
+  });
+  return (await res.json()).access_token;
+}
+
 // ── Discord dedup ──
 const _discordSent = new Map();
 const DEDUP_TTL = 3600000;
@@ -115,6 +142,32 @@ export default {
     // ── GET /api/time ──
     if (request.method === 'GET' && url.pathname === '/api/time') {
       return new Response(JSON.stringify({ utc: Date.now() }));
+    }
+
+    // ── POST /api/delete-user ──
+    if (request.method === 'POST' && url.pathname === '/api/delete-user') {
+      if (!env.FIREBASE_SERVICE_ACCOUNT) {
+        return new Response(JSON.stringify({ ok: false, error: 'Service account not configured' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
+      try {
+        const { uid } = await request.json();
+        if (!uid) return new Response(JSON.stringify({ ok: false, error: 'Missing uid' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        const accessToken = await getGoogleAccessToken(env.FIREBASE_SERVICE_ACCOUNT);
+        const authRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/projects/${env.FB_PROJECT_ID}/accounts/${uid}:delete`,
+          { method: 'POST', headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: '{}' }
+        );
+        if (!authRes.ok) {
+          const err = await authRes.text();
+          return new Response(JSON.stringify({ ok: false, error: err }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+        }
+        const fbBase = env.FB_DATABASE_URL.replace(/\/$/, '');
+        const fbAuth = `auth=${env.FB_DATABASE_SECRET}`;
+        await fetch(`${fbBase}/users/${uid}.json?${fbAuth}`, { method: 'DELETE' });
+        return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
+      } catch (e) {
+        return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      }
     }
 
     // ── GET /firebase-config ──

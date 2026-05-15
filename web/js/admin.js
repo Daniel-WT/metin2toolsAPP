@@ -380,11 +380,24 @@ window.AdminModule = {
 
     deleteAccount: async function(uid) {
         if (!window.currentUserProfile?.isSuperAdmin) return;
-        if (!confirm("ATENȚIE! Ești pe cale să ștergi DEFINITIV acest cont din baza de date. Această acțiune nu poate fi anulată. Continui?")) return;
-        
-        // This only removes from RTDB. Firebase Auth deletion requires Admin SDK or user re-auth.
-        await firebase.database().ref(`users/${uid}`).remove();
-        if (typeof showToast === 'function') showToast("Profilul utilizatorului a fost șters din baza de date.", "warning");
+        if (!confirm("ATENȚIE! Ești pe cale să ștergi DEFINITIV acest cont (baza de date + autentificare). Această acțiune nu poate fi anulată. Continui?")) return;
+        try {
+            const res = await fetch('/api/delete-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                if (typeof showToast === 'function') showToast("Cont șters complet (baza de date + autentificare).", "success");
+            } else {
+                await firebase.database().ref(`users/${uid}`).remove();
+                if (typeof showToast === 'function') showToast("Date șterse, dar Auth a eșuat: " + (data.error || 'eroare necunoscută'), "warning");
+            }
+        } catch (e) {
+            await firebase.database().ref(`users/${uid}`).remove();
+            if (typeof showToast === 'function') showToast("Date șterse din baza de date (Auth indisponibil).", "warning");
+        }
     },
 
     removeMember: async function(uid) {
