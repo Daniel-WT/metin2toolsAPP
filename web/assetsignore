@@ -4,3 +4,4 @@ wrangler.jsonc
 scripts/
 data/snapshots/
 .github/
+node_modules/
