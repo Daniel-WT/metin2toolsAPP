@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "metin2tools",
+  "name": "metin2toolsapp",
   "main": "worker.js",
   "compatibility_date": "2025-09-27",
   "compatibility_flags": ["nodejs_compat"],
