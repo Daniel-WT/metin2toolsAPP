@@ -192,10 +192,10 @@ window.AdminModule = {
                             </div>
                             <div style="min-width:0;">
                                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                    <h4 style="margin:0;color:#fff;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px;" title="${u.name || ''}">${u.name || u.email?.split('@')[0] || 'Unknown'}</h4>
+                                    <h4 style="margin:0;color:#fff;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;" title="${u.name || u.email || ''}">${u.name || u.email?.split('@')[0] || 'Unknown'}</h4>
                                     ${roleLabel}
                                 </div>
-                                <p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,0.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;" title="${u.email || ''}">${u.email || 'No email'}</p>
+                                <p style="margin:3px 0 0;font-size:11px;color:rgba(255,255,255,0.25);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;" title="${u.email || ''}">${u.email || 'No email'}</p>
                             </div>
                         </div>
                         <div style="text-align:right;flex-shrink:0;">
