@@ -104,6 +104,7 @@ function initFirebase(config) {
       db.ref(`teams/${teamId}/spawn/data`).on('value', snap => {
         const val = snap.val();
         console.log('[Sync] Spawn data received from Firebase:', val ? Object.keys(val) : 'null');
+        window._fbSpawnLoaded = true; // unblock saves even when Firebase has no data yet
         if (!val) return;
         if (!spawnData) spawnData = {};
         
@@ -147,7 +148,6 @@ function initFirebase(config) {
         spawnData.gheata = {};
         spawnData.genFals = {};
         Object.assign(spawnData, val);
-        window._fbSpawnLoaded = true; // Firebase data received — allow saves
         if (typeof buildMapDots === 'function') buildMapDots();
         if (typeof renderSpawnTables === 'function') renderSpawnTables();
         if (typeof updateSpawnTypeUI === 'function') updateSpawnTypeUI();
