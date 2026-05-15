@@ -141,29 +141,33 @@ function migrateSpawnData(data) {
 }
 
 function loadSpawn() {
-  try {
-    var raw = localStorage.getItem(SPAWN_KEY);
-    if (!raw) raw = localStorage.getItem('metin2_spawn_v2');
-    spawnData = raw ? migrateSpawnData(JSON.parse(raw)) : defaultSpawnData();
-    if (!spawnData.rooms)  spawnData.rooms  = {};
-    if (!spawnData.gheata) spawnData.gheata = {};
-    if (!spawnData.fulger) spawnData.fulger = {};
-    if (!spawnData.chTimes) spawnData.chTimes = {};
-    if (!spawnData.pins) spawnData.pins = {};
-    for (var i = 1; i <= 6; i++) {
-      if (!spawnData.gheata['ch'+i]) spawnData.gheata['ch'+i] = { genFals: '', gf18: false, gfF: false };
-      if (spawnData.gheata['ch'+i].gf18 === undefined) spawnData.gheata['ch'+i].gf18 = false;
-      if (spawnData.gheata['ch'+i].gfF === undefined) spawnData.gheata['ch'+i].gfF = false;
-      if (!spawnData.fulger['ch'+i]) spawnData.fulger['ch'+i] = { spate: '', camera: '' };
-      if (spawnData.chTimes['ch'+i] === undefined) spawnData.chTimes['ch'+i] = '';
+  // If Firebase has already synced data, skip localStorage load — preserves real-time state
+  if (!window._fbSpawnLoaded) {
+    try {
+      var raw = localStorage.getItem(SPAWN_KEY);
+      if (!raw) raw = localStorage.getItem('metin2_spawn_v2');
+      spawnData = raw ? migrateSpawnData(JSON.parse(raw)) : defaultSpawnData();
+    } catch(e) { spawnData = defaultSpawnData(); }
+  }
+  if (!spawnData) spawnData = defaultSpawnData();
+  if (!spawnData.rooms)  spawnData.rooms  = {};
+  if (!spawnData.gheata) spawnData.gheata = {};
+  if (!spawnData.fulger) spawnData.fulger = {};
+  if (!spawnData.chTimes) spawnData.chTimes = {};
+  if (!spawnData.pins) spawnData.pins = {};
+  for (var i = 1; i <= 6; i++) {
+    if (!spawnData.gheata['ch'+i]) spawnData.gheata['ch'+i] = { genFals: '', gf18: false, gfF: false };
+    if (spawnData.gheata['ch'+i].gf18 === undefined) spawnData.gheata['ch'+i].gf18 = false;
+    if (spawnData.gheata['ch'+i].gfF === undefined) spawnData.gheata['ch'+i].gfF = false;
+    if (!spawnData.fulger['ch'+i]) spawnData.fulger['ch'+i] = { spate: '', camera: '' };
+    if (spawnData.chTimes['ch'+i] === undefined) spawnData.chTimes['ch'+i] = '';
+  }
+  Object.keys(spawnData.rooms).forEach(function(id) {
+    if (!Array.isArray(spawnData.rooms[id])) {
+      var r = spawnData.rooms[id];
+      spawnData.rooms[id] = (r && r.type && r.ch) ? [{type:r.type, ch:r.ch, dead:false}] : [];
     }
-    Object.keys(spawnData.rooms).forEach(function(id) {
-      if (!Array.isArray(spawnData.rooms[id])) {
-        var r = spawnData.rooms[id];
-        spawnData.rooms[id] = (r && r.type && r.ch) ? [{type:r.type, ch:r.ch, dead:false}] : [];
-      }
-    });
-  } catch(e) { spawnData = defaultSpawnData(); }
+  });
   if (!spawnData.spawnType) spawnData.spawnType = 'simplu';
   if (!spawnData.evenHourType) spawnData.evenHourType = 'simplu';
   // syncSpawnType(true); // Removed auto-sync on load to prevent conflicts

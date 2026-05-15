@@ -835,18 +835,57 @@ function renderTransfers() {
     html += '</div>';
   }
 
-  // ── Admin: trigger scrape (admin only) ──
+  // ── Detectie (toti utilizatorii) ──
+  var detectLoading = _localDetectLoading || _nameChangeLoading;
+  var _selectedDate = '';
+  var existingDateEl = document.getElementById('snapshotDateInput');
+  if (existingDateEl && existingDateEl.value) {
+    _selectedDate = existingDateEl.value;
+  } else if (_availableDates && _availableDates.length > 0) {
+    _selectedDate = _availableDates[0].date;
+  }
+
+  html += '<div class="tf-action-grid">';
+  html += '<div class="tf-action-card">';
+  html += '<div class="tf-action-card-title">Detectie</div>';
+
+  if (_availableDates === null) {
+    html += '<div class="tf-date-chips-loading">Se cauta date disponibile...</div>';
+  } else if (_availableDates.length === 0) {
+    html += '<div class="tf-date-chips-loading">Niciun snapshot gasit.</div>';
+  } else {
+    html += '<input type="hidden" id="snapshotDateInput" value="' + _escTf(_selectedDate) + '">';
+    html += '<div class="tf-date-chips">';
+    _availableDates.forEach(function(entry) {
+      var isActive = entry.date === _selectedDate;
+      var safeDateVal = entry.date.replace(/'/g, '');
+      var typeForDate = entry.hasBefore ? 'before' : 'after';
+      html += '<div class="tf-date-chip' + (isActive ? ' active' : '') + '" onclick="_snapshotDate=\'' + safeDateVal + '\';_snapshotType=\'' + typeForDate + '\';document.getElementById(\'snapshotDateInput\').value=\'' + safeDateVal + '\';loadPlayerSnapshot()">';
+      html += '<span>' + _escTf(entry.date) + '</span>';
+      html += '<span class="tf-date-chip-dots">';
+      html += '<span class="tf-date-chip-dot' + (entry.hasBefore ? ' on' : '') + '" title="Before"></span>';
+      html += '<span class="tf-date-chip-dot' + (entry.hasAfter ? ' on' : '') + '" title="After"></span>';
+      html += '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '<button class="tf-admin-btn full" ' + (detectLoading ? 'disabled' : '') + ' onclick="runDetect()">Detecteaza</button>';
+  if (detectLoading) {
+    html += '<div class="tf-trigger-status tf-trigger-loading">Se detecteaza...</div>';
+  } else if (_localDetectResults && _localDetectResults.error) {
+    html += '<div class="tf-trigger-status tf-trigger-err">Eroare: ' + _escTf(_localDetectResults.error) + '</div>';
+  } else if (_localDetectResults && !_localDetectResults.error) {
+    var ncCount = (_nameChangeResults && !_nameChangeResults.error) ? _nameChangeResults.nameChanges.length : 0;
+    html += '<div class="tf-trigger-status tf-trigger-ok">' + _localDetectResults.transfers.length + ' transferuri · ' + ncCount + ' schimbari · ' + _escTf(_localDetectResults.date || '') + '</div>';
+  }
+  html += '</div>';
+  html += '</div>'; // /tf-action-grid
+
+  // ── Admin: Colectare Date + Scanare Automata ──
   if (window._isAdmin) {
     var btnDisabled = _triggerScrapeStatus === 'loading' ? 'disabled' : '';
-
-    // Selected date: prefer existing input value, else best available date
-    var _selectedDate = '';
-    var existingDateEl = document.getElementById('snapshotDateInput');
-    if (existingDateEl && existingDateEl.value) {
-      _selectedDate = existingDateEl.value;
-    } else if (_availableDates && _availableDates.length > 0) {
-      _selectedDate = _availableDates[0].date;
-    }
 
     html += '<div class="tf-action-grid">';
 
@@ -879,48 +918,7 @@ function renderTransfers() {
     }
     html += '</div>';
 
-    // ── Card 2: Detectie ──
-    var detectLoading = _localDetectLoading || _nameChangeLoading;
-    html += '<div class="tf-action-card">';
-    html += '<div class="tf-action-card-title">Detectie</div>';
-
-    // Date chips
-    if (_availableDates === null) {
-      html += '<div class="tf-date-chips-loading">Se cauta date disponibile...</div>';
-    } else if (_availableDates.length === 0) {
-      html += '<div class="tf-date-chips-loading">Niciun snapshot gasit.</div>';
-    } else {
-      html += '<input type="hidden" id="snapshotDateInput" value="' + _escTf(_selectedDate) + '">';
-      html += '<div class="tf-date-chips">';
-      _availableDates.forEach(function(entry) {
-        var isActive = entry.date === _selectedDate;
-        var safeDateVal = entry.date.replace(/'/g, '');
-        var typeForDate = entry.hasBefore ? 'before' : 'after';
-        html += '<div class="tf-date-chip' + (isActive ? ' active' : '') + '" onclick="_snapshotDate=\'' + safeDateVal + '\';_snapshotType=\'' + typeForDate + '\';document.getElementById(\'snapshotDateInput\').value=\'' + safeDateVal + '\';loadPlayerSnapshot()">';
-        html += '<span>' + _escTf(entry.date) + '</span>';
-        html += '<span class="tf-date-chip-dots">';
-        html += '<span class="tf-date-chip-dot' + (entry.hasBefore ? ' on' : '') + '" title="Before"></span>';
-        html += '<span class="tf-date-chip-dot' + (entry.hasAfter ? ' on' : '') + '" title="After"></span>';
-        html += '</span>';
-        html += '</div>';
-      });
-      html += '</div>';
-    }
-
-    html += '<button class="tf-admin-btn full" ' + (detectLoading ? 'disabled' : '') + ' onclick="runDetect()">Detecteaza</button>';
-    if (detectLoading) {
-      html += '<div class="tf-trigger-status tf-trigger-loading">Se detecteaza...</div>';
-    } else if (_localDetectResults && _localDetectResults.error) {
-      html += '<div class="tf-trigger-status tf-trigger-err">Eroare: ' + _escTf(_localDetectResults.error) + '</div>';
-    } else if (_localDetectResults && !_localDetectResults.error) {
-      var ncCount = (_nameChangeResults && !_nameChangeResults.error) ? _nameChangeResults.nameChanges.length : 0;
-      html += '<div class="tf-trigger-status tf-trigger-ok">' + _localDetectResults.transfers.length + ' transferuri · ' + ncCount + ' schimbari · ' + _escTf(_localDetectResults.date || '') + '</div>';
-    }
-    html += '</div>';
-
-    html += '</div>'; // /close Detectie card
-
-    // ── Card 3: Scanare Automata ──
+    // ── Card 2: Scanare Automata ──
     var _next = _calcNextScanDates(_scrapeSettings.scanDay);
     html += '<div class="tf-action-card tf-action-card--wide">';
     html += '<div class="tf-action-card-title">Scanare Automata</div>';
