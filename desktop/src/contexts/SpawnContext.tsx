@@ -256,6 +256,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
     audioCtxRef.current = ctx;
     activeOscillators.current = [];
+    ctx.resume().catch(() => {});
 
     const sliderVol = Math.min(1, globalVolume * spawnVolume);
     const t0 = ctx.currentTime;
@@ -712,7 +713,8 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const p = val.split(':').map(n => parseInt(n, 10));
           let d = (p[0] * 60 + p[1]) - nowInHour;
           if (d < 0) d += 3600;
-          return d > 0;
+          // Keep alert only while still within alarm window; clears automatically after spawn
+          return d > 0 && d <= 35;
         });
         if (next.length === 0 && prev.length > 0) stopSpawnAlarm();
         return next;

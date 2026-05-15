@@ -81,6 +81,9 @@ var _ssIsAdmin = false;
 var _ssVolume = 0.5;
 var _ssAutoMonitorMode = false;
 var _ssAutoMonitorPrevSelected = {};
+var _ssScheduledAt = 0;
+var _ssScheduleEnabled = false;
+var _ssScheduleChecker = null;
 
 // ── Admin: based on Firebase Auth profile ──
 function _ssRefreshAdminState() {
@@ -134,6 +137,7 @@ function initServerStatus() {
   renderServerStatus();
   _ssRefreshAdminState();
   _ssSetupFirebaseListener();
+  _ssStartScheduleChecker();
 }
 
 // ── Firebase listener for status + monitor state ──
@@ -232,28 +236,63 @@ function _ssSetupFirebaseListener() {
   db.ref(p('serverStatus/_autoMonitor')).on('value', function (snap) {
     var data = snap.val();
     if (!data || !data.active) return;
-    // Only first connected client becomes the auto-monitor leader
-    if (_ssMonitorActive) return; // already monitoring
+    if (_ssMonitorActive) return;
 
-    // Check if there's already an active leader
     db.ref(p('serverStatus/_monitor')).once('value').then(function (monSnap) {
       var mon = monSnap.val() || {};
       var hasLeader = mon.leaderId && mon.lastPollAt && (Date.now() - mon.lastPollAt < 15000);
-      if (hasLeader) return; // someone else is already monitoring
+      if (hasLeader) return;
 
-      // Auto-start monitoring for the specified server only
       var targetServer = data.server || 'magyarorszag';
-      // Temporarily override selected servers to only monitor target
       var prevSelected = JSON.parse(JSON.stringify(_ssSelectedServers));
       Object.keys(_ssSelectedServers).forEach(function (k) { _ssSelectedServers[k] = false; });
       _ssSelectedServers[targetServer] = true;
-
-      // Start as auto-monitor (bypass admin check)
       _ssAutoMonitorMode = true;
       _ssAutoMonitorPrevSelected = prevSelected;
       _ssStartMonitorInternal();
     });
   });
+
+  // Listen for scheduled monitor (set by admin)
+  db.ref(p('serverStatus/_scheduledMonitor')).on('value', function (snap) {
+    var data = snap.val() || {};
+    _ssScheduleEnabled = !!data.enabled;
+    _ssScheduledAt = data.scheduledAt || 0;
+    _ssRenderScheduleBar();
+  });
+}
+
+// ── Schedule checker: runs every 30s, auto-starts monitoring at scheduled time ──
+function _ssStartScheduleChecker() {
+  if (_ssScheduleChecker) return;
+  _ssScheduleChecker = setInterval(function () {
+    if (!_ssScheduleEnabled || !_ssScheduledAt || _ssMonitorActive) return;
+    var now = Date.now();
+    // Trigger within 90s window around scheduled time
+    if (now >= _ssScheduledAt && now < _ssScheduledAt + 90000) {
+      if (db) db.ref(p('serverStatus/_scheduledMonitor')).set({ enabled: false, scheduledAt: 0 });
+      _ssStartMonitorInternal();
+      if (typeof showToast === 'function') showToast('Monitorizare pornita automat conform programului.', 'info');
+    }
+  }, 30000);
+}
+
+// ── Render schedule info bar ──
+function _ssRenderScheduleBar() {
+  var bar = document.getElementById('ssScheduleBar');
+  if (!bar) return;
+  if (!_ssScheduleEnabled || !_ssScheduledAt) {
+    bar.style.display = 'none';
+    return;
+  }
+  var d = new Date(_ssScheduledAt);
+  var days = ['Duminica', 'Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri', 'Sambata'];
+  var dayLabel = days[d.getDay()];
+  var h = (d.getHours() < 10 ? '0' : '') + d.getHours();
+  var m = (d.getMinutes() < 10 ? '0' : '') + d.getMinutes();
+  var infoEl = document.getElementById('ssScheduleInfo');
+  if (infoEl) infoEl.textContent = 'Porneste automat: ' + dayLabel + ' la ' + h + ':' + m;
+  bar.style.display = '';
 }
 
 // ── Start monitoring ──
@@ -591,9 +630,26 @@ function renderServerStatus() {
     '<div class="ss-admin-controls" id="ssAdminBar" style="display:none">' +
     '<button class="ss-btn ss-btn-start" id="ssStartBtn">Start</button>' +
     '<button class="ss-btn ss-btn-stop" id="ssStopBtn" style="display:none">Stop</button>' +
+    '<button class="ss-btn ss-btn-schedule" id="ssScheduleBtn">Programeaza</button>' +
     '<div class="ss-dur-wrap" id="ssDurWrap"><span class="ss-dur-label">Durata:</span>' + durHtml + '</div>' +
     '</div>' +
     '</div>' +
+    '</div>' +
+    '<div class="ss-schedule-bar" id="ssScheduleBar" style="display:none">' +
+    '<span class="ss-schedule-icon">&#9200;</span>' +
+    '<span id="ssScheduleInfo"></span>' +
+    '<button class="ss-btn-clear" id="ssCancelSchedule">Anuleaza</button>' +
+    '</div>' +
+    '<div class="ss-schedule-form" id="ssScheduleForm" style="display:none">' +
+    '<span class="ss-schedule-form-label">Zi:</span>' +
+    '<select id="ssSchDay" class="ss-sch-input">' +
+    '<option value="0">Duminica</option><option value="1">Luni</option><option value="2">Marti</option>' +
+    '<option value="3">Miercuri</option><option value="4">Joi</option><option value="5">Vineri</option><option value="6">Sambata</option>' +
+    '</select>' +
+    '<span class="ss-schedule-form-label">Ora:</span>' +
+    '<input type="time" id="ssSchTime" class="ss-sch-input" value="10:00">' +
+    '<button class="ss-btn ss-btn-start" id="ssSaveSchedule">Salveaza</button>' +
+    '<button class="ss-btn ss-btn-stop" id="ssCancelScheduleForm">Renunta</button>' +
     '</div>' +
     '<div class="ss-grid" id="ssGrid"></div>';
 
@@ -617,9 +673,57 @@ function renderServerStatus() {
   document.getElementById('ssStartBtn').addEventListener('click', ssStartMonitor);
   document.getElementById('ssStopBtn').addEventListener('click', ssStopMonitor);
 
+  document.getElementById('ssScheduleBtn').addEventListener('click', function () {
+    var form = document.getElementById('ssScheduleForm');
+    if (!form) return;
+    // Pre-select current day of week
+    var now = new Date();
+    var dayEl = document.getElementById('ssSchDay');
+    if (dayEl) dayEl.value = String(now.getDay());
+    form.style.display = form.style.display === 'none' ? '' : 'none';
+  });
+
+  document.getElementById('ssSaveSchedule').addEventListener('click', function () {
+    var dayEl = document.getElementById('ssSchDay');
+    var timeEl = document.getElementById('ssSchTime');
+    if (!dayEl || !timeEl || !timeEl.value) return;
+    var targetDay = parseInt(dayEl.value);
+    var parts = timeEl.value.split(':');
+    var targetH = parseInt(parts[0]);
+    var targetM = parseInt(parts[1]);
+
+    // Compute next occurrence of the selected day+time
+    var now = new Date();
+    var target = new Date();
+    target.setHours(targetH, targetM, 0, 0);
+    var daysUntil = (targetDay - now.getDay() + 7) % 7;
+    if (daysUntil === 0 && target <= now) daysUntil = 7; // same day but past → next week
+    target.setDate(target.getDate() + daysUntil);
+
+    if (db) {
+      db.ref(p('serverStatus/_scheduledMonitor')).set({
+        enabled: true,
+        scheduledAt: target.getTime(),
+        setBy: window._myClientId || ''
+      });
+    }
+    document.getElementById('ssScheduleForm').style.display = 'none';
+    if (typeof showToast === 'function') showToast('Monitorizare programata!', 'success');
+  });
+
+  document.getElementById('ssCancelScheduleForm').addEventListener('click', function () {
+    document.getElementById('ssScheduleForm').style.display = 'none';
+  });
+
+  document.getElementById('ssCancelSchedule').addEventListener('click', function () {
+    if (db) db.ref(p('serverStatus/_scheduledMonitor')).set({ enabled: false, scheduledAt: 0 });
+    if (typeof showToast === 'function') showToast('Programare anulata.', 'info');
+  });
+
   // Populate admin UI
   _ssUpdateAdminUI();
-
+  _ssRenderScheduleBar();
+  _ssStartScheduleChecker();
   _ssRenderGrid();
 }
 

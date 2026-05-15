@@ -12,6 +12,23 @@ function getAudioCtx() {
   return audioCtx;
 }
 
+// Unlock AudioContext on first user interaction (browser policy requires gesture)
+(function() {
+  function unlockAudio() {
+    if (audioCtx) {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } else {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+    document.removeEventListener('click', unlockAudio, true);
+    document.removeEventListener('keydown', unlockAudio, true);
+    document.removeEventListener('touchstart', unlockAudio, true);
+  }
+  document.addEventListener('click', unlockAudio, true);
+  document.addEventListener('keydown', unlockAudio, true);
+  document.addEventListener('touchstart', unlockAudio, true);
+})();
+
 // ── Realistic alarm tone builder ──
 // Creates a rich alarm tone with harmonics and tremolo (like a real alarm/siren)
 function playAlarmTone(freq, duration, vol, opts = {}) {

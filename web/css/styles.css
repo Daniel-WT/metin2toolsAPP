@@ -4468,6 +4468,40 @@
     background:rgba(224,82,82,.12); color:var(--red); border-color:rgba(224,82,82,.25);
   }
   .ss-btn-stop:hover { background:rgba(224,82,82,.2); border-color:rgba(224,82,82,.4); }
+  .ss-btn-schedule {
+    background:rgba(74,158,255,.1); color:#4a9eff; border-color:rgba(74,158,255,.25);
+  }
+  .ss-btn-schedule:hover { background:rgba(74,158,255,.2); border-color:rgba(74,158,255,.4); }
+
+  /* Schedule bar */
+  .ss-schedule-bar {
+    display:flex; align-items:center; gap:8px;
+    background:rgba(74,158,255,.07); border:1px solid rgba(74,158,255,.2);
+    border-radius:8px; padding:8px 14px; margin-bottom:10px;
+    font-size:13px; color:#4a9eff;
+  }
+  .ss-schedule-icon { font-size:15px; }
+  .ss-btn-clear {
+    margin-left:auto; background:transparent; border:1px solid rgba(224,82,82,.3);
+    color:var(--red); border-radius:6px; padding:3px 10px; font-size:11px;
+    cursor:pointer; font-family:'Rajdhani',sans-serif; font-weight:600;
+    text-transform:uppercase; letter-spacing:.5px;
+  }
+  .ss-btn-clear:hover { background:rgba(224,82,82,.12); }
+
+  /* Schedule form */
+  .ss-schedule-form {
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    background:var(--surface2); border:1px solid var(--border-accent);
+    border-radius:8px; padding:10px 14px; margin-bottom:10px;
+  }
+  .ss-schedule-form-label { font-size:12px; color:var(--text-dim); font-weight:600; }
+  .ss-sch-input {
+    background:var(--surface3); border:1px solid var(--border-accent);
+    color:var(--text); border-radius:6px; padding:5px 8px; font-size:13px;
+    font-family:'Rajdhani',sans-serif;
+  }
+  .ss-sch-input:focus { outline:none; border-color:rgba(74,158,255,.4); }
 
   /* Grid */
   .ss-grid {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Server, Play, Square, Wifi, WifiOff, HelpCircle } from 'lucide-react';
+import { Server, Play, Square, Wifi, WifiOff, Clock, X } from 'lucide-react';
 import { ref, onValue, set, remove, update } from 'firebase/database';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -59,6 +59,9 @@ const SERVER_MAP: Record<string, {
 interface EndpointStatus { online: boolean | null; checkedAt?: number; stale?: boolean }
 type ServerStatusMap = Record<string, Record<string, EndpointStatus>>;
 interface MonitorState { leaderId?: string; startedAt?: number; maxDurationMs?: number; lastPollAt?: number }
+interface ScheduleState { enabled: boolean; scheduledAt: number }
+
+const DAYS_RO = ['Duminica', 'Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri', 'Sambata'];
 
 function p(teamId: string, path: string) {
   return `teams/${teamId}/serverStatus/${path}`;
@@ -96,6 +99,10 @@ export default function ServerStatus() {
     try { const d = parseInt(localStorage.getItem('ss_pro_duration') || ''); if (d > 0) return d; } catch {}
     return 4 * 3600_000;
   });
+  const [schedule, setSchedule] = useState<ScheduleState>({ enabled: false, scheduledAt: 0 });
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [schedDay, setSchedDay] = useState(new Date().getDay());
+  const [schedTime, setSchedTime] = useState('10:00');
 
   const monitoringRef = useRef(false);
   const pollInFlight   = useRef(false);
@@ -126,7 +133,12 @@ export default function ServerStatus() {
       setMonitor(snap.val() || {});
     });
 
-    return () => { unsubSrv(); unsubMon(); };
+    const unsubSched = onValue(ref(db, p(teamId, '_scheduledMonitor')), snap => {
+      const d = snap.val() || {};
+      setSchedule({ enabled: !!d.enabled, scheduledAt: d.scheduledAt || 0 });
+    });
+
+    return () => { unsubSrv(); unsubMon(); unsubSched(); };
   }, [teamId]);
 
   const stopMonitor = useCallback(() => {
@@ -201,6 +213,35 @@ export default function ServerStatus() {
     if (autoStopRef.current)  clearTimeout(autoStopRef.current);
   }, []);
 
+  // Auto-start at scheduled time
+  useEffect(() => {
+    if (!schedule.enabled || !schedule.scheduledAt || monitoring || !teamId) return;
+    const check = setInterval(() => {
+      const now = Date.now();
+      if (now >= schedule.scheduledAt && now < schedule.scheduledAt + 90_000) {
+        set(ref(db, p(teamId, '_scheduledMonitor')), { enabled: false, scheduledAt: 0 });
+        startMonitor();
+      }
+    }, 30_000);
+    return () => clearInterval(check);
+  }, [schedule, monitoring, teamId, startMonitor]);
+
+  const saveSchedule = useCallback(() => {
+    if (!teamId) return;
+    const [h, m] = schedTime.split(':').map(Number);
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+    const daysUntil = (schedDay - new Date().getDay() + 7) % 7 || (target <= new Date() ? 7 : 0);
+    target.setDate(target.getDate() + daysUntil);
+    set(ref(db, p(teamId, '_scheduledMonitor')), { enabled: true, scheduledAt: target.getTime() });
+    setShowScheduleForm(false);
+  }, [teamId, schedDay, schedTime]);
+
+  const cancelSchedule = useCallback(() => {
+    if (!teamId) return;
+    set(ref(db, p(teamId, '_scheduledMonitor')), { enabled: false, scheduledAt: 0 });
+  }, [teamId]);
+
   const isActive = !!monitor.leaderId && !!monitor.lastPollAt && (Date.now() - (monitor.lastPollAt || 0) < 15_000);
   const isLeader = monitor.leaderId === MY_CLIENT_ID;
 
@@ -271,10 +312,61 @@ export default function ServerStatus() {
                   <Play className="w-3 h-3 fill-current" /> Start
                 </button>
               )}
+
+              <button
+                onClick={() => setShowScheduleForm(f => !f)}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[11px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-colors"
+              >
+                <Clock className="w-3 h-3" /> Programeaza
+              </button>
             </>
           )}
         </div>
       </div>
+
+      {/* Schedule bar */}
+      {isAdmin && schedule.enabled && schedule.scheduledAt > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/8 border border-blue-500/20 text-blue-400 text-sm">
+          <Clock className="w-4 h-4 shrink-0" />
+          <span className="flex-1 font-semibold">
+            Porneste automat: {DAYS_RO[new Date(schedule.scheduledAt).getDay()]} la {
+              String(new Date(schedule.scheduledAt).getHours()).padStart(2, '0')}:{
+              String(new Date(schedule.scheduledAt).getMinutes()).padStart(2, '0')}
+          </span>
+          <button onClick={cancelSchedule} className="flex items-center gap-1 px-3 py-1 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-colors">
+            <X className="w-3 h-3" /> Anuleaza
+          </button>
+        </div>
+      )}
+
+      {/* Schedule form */}
+      {isAdmin && showScheduleForm && (
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-bg-secondary border border-white/10">
+          <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Zi:</span>
+          <select
+            value={schedDay}
+            onChange={e => setSchedDay(Number(e.target.value))}
+            className="bg-bg-tertiary border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-slate-300 outline-none focus:border-blue-500/40 transition-colors"
+          >
+            {DAYS_RO.map((d, i) => <option key={i} value={i}>{d}</option>)}
+          </select>
+          <span className="text-[11px] font-black uppercase tracking-widest text-slate-500">Ora:</span>
+          <input
+            type="time"
+            value={schedTime}
+            onChange={e => setSchedTime(e.target.value)}
+            className="bg-bg-tertiary border border-white/10 rounded-lg px-3 py-1.5 text-[12px] text-slate-300 outline-none focus:border-blue-500/40 transition-colors"
+          />
+          <button onClick={saveSchedule}
+            className="px-4 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-colors">
+            Salveaza
+          </button>
+          <button onClick={() => setShowScheduleForm(false)}
+            className="px-4 py-1.5 rounded-lg bg-white/5 border border-white/10 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+            Renunta
+          </button>
+        </div>
+      )}
 
       {/* Server toggles */}
       <div className="flex flex-wrap gap-2">
