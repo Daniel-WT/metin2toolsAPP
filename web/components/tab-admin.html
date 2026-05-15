@@ -1,0 +1,108 @@
+<!-- TAB: Admin Panel -->
+<div class="tab-page" id="tab-admin" style="display:none">
+  <div class="admin-tab-header">
+    <div class="admin-header-main">
+      <h2 class="admin-title">Super-Admin Control</h2>
+      <p class="admin-subtitle">Sistem centralizat de administrare.</p>
+    </div>
+    <div class="admin-nav-tabs">
+      <button class="admin-nav-tab active" data-admin-tab="requests">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Ceri
+      </button>
+      <button class="admin-nav-tab" data-admin-tab="teams">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Echipe
+      </button>
+      <button class="admin-nav-tab" data-admin-tab="bans">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Banned
+      </button>
+    </div>
+  </div>
+
+  <div class="admin-content">
+    <!-- Requests View -->
+    <div id="admin-view-requests" class="admin-view active">
+      <div id="admin-requests-list" class="admin-list-container">
+        <div class="admin-empty-state">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <p>Nicio cerere în așteptare.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teams View -->
+    <div id="admin-view-teams" class="admin-view">
+      <div id="admin-teams-list" class="admin-list-container"></div>
+    </div>
+
+    <!-- Bans View -->
+    <div id="admin-view-bans" class="admin-view">
+      <div class="admin-ban-form card">
+        <h3 class="card-title">Adaugă Ban Nou</h3>
+        <div class="ban-input-group">
+          <input type="email" id="admin-ban-email" placeholder="Introdu email-ul pentru ban..." class="form-input">
+          <button class="btn-ban" id="btn-admin-ban">Banează</button>
+        </div>
+      </div>
+      <div class="admin-bans-table-wrap card">
+        <div class="card-header">
+          <h3 class="card-title">Utilizatori Banați</h3>
+        </div>
+        <div id="admin-bans-list" class="admin-list-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.admin-tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  background: rgba(255,255,255,0.02);
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.admin-title { font-family: 'Rajdhani', sans-serif; font-size: 24px; font-weight: 700; color: #fff; margin: 0; }
+.admin-subtitle { font-size: 13px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+.admin-nav-tabs { display: flex; gap: 8px; background: rgba(0,0,0,0.2); padding: 4px; border-radius: 12px; }
+.admin-nav-tab {
+  display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px;
+  border: none; background: transparent; color: rgba(255,255,255,0.4);
+  font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px;
+  cursor: pointer; transition: all 0.2s;
+}
+.admin-nav-tab:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.admin-nav-tab.active { background: #c8962e; color: #0a0b0e; }
+
+.admin-view { display: none; }
+.admin-view.active { display: block; }
+
+.admin-list-container { display: flex; flex-direction: column; gap: 16px; }
+.admin-request-card, .admin-team-card {
+  background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px; padding: 20px; display: flex; align-items: center; justify-content: space-between;
+  transition: all 0.2s;
+}
+.admin-request-card:hover { border-color: rgba(200,150,46,0.2); background: rgba(200,150,46,0.02); }
+
+.admin-empty-state { text-align: center; padding: 64px; color: rgba(255,255,255,0.2); }
+
+.admin-ban-form { margin-bottom: 24px; }
+.ban-input-group { display: flex; gap: 12px; margin-top: 16px; }
+.btn-ban {
+  padding: 0 24px; background: #e05252; color: #fff; border-radius: 12px;
+  border: none; font-weight: 900; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 1px; cursor: pointer;
+}
+
+.admin-ban-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 20px; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.admin-ban-item:last-child { border-bottom: none; }
+</style>

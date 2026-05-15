@@ -1,0 +1,202 @@
+﻿<!-- TAB: Alerte -->
+<div class="tab-page" id="tab-alerte" style="display:none">
+<div class="al-two-col">
+
+  <!-- COL: Alarme -->
+  <div class="al-col">
+
+  <div class="al-section-header al-section-header--alarm">
+    <div class="al-section-header-left">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span>Alarme</span>
+    </div>
+    <button id="btnAddAlerta" class="btn-add" style="font-size:12px;padding:7px 14px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Adauga
+    </button>
+  </div>
+
+  <!-- Form (hidden by default) -->
+  <div id="alertaForm" style="display:none;background:var(--surface2);border:1px solid var(--border-accent);border-radius:12px;padding:20px;margin-bottom:20px">
+    <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--gold-light);margin-bottom:16px" id="alertaFormTitle">Alerta Noua</div>
+
+    <!-- Row 1: Name + Message -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <div class="al-lbl">Nume alerta</div>
+        <input id="alertaNume" type="text" placeholder="ex: Hydra" maxlength="40" class="al-inp">
+      </div>
+      <div>
+        <div class="al-lbl">Mesaj (optional)</div>
+        <input id="alertaMesaj" type="text" placeholder="ex: Timpul a trecut!" maxlength="80" class="al-inp">
+      </div>
+    </div>
+
+    <!-- Row 2: Repeat type -->
+    <div style="margin-bottom:14px">
+      <div class="al-lbl">Tip repetare</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap" id="alertaRepeatBtns">
+        <button class="alerta-rep-btn active" data-rep="zilnic">Zilnic</button>
+        <button class="alerta-rep-btn" data-rep="saptamanal">Saptamanal</button>
+        <button class="alerta-rep-btn" data-rep="lunar">Lunar</button>
+      </div>
+    </div>
+
+    <!-- ── ZILNIC ─────────────────────────────────────────── -->
+    <div id="alertaZilnicRow" style="margin-bottom:14px">
+      <div class="al-lbl">Ora declansare</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <input id="alertaOra" type="time" class="al-inp" style="width:130px">
+        <div style="font-size:11px;color:var(--text-muted)">Se repeta <b>in fiecare zi</b> la ora setata</div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="al-lbl">Repeta la fiecare</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input id="alertaZilnicEvery" type="number" min="1" max="365" value="1" class="al-inp" style="width:70px;text-align:center">
+          <span style="color:var(--text-muted);font-size:13px">zi(le)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SAPTAMANAL ─────────────────────────────────────── -->
+    <div id="alertaWeekRow" style="display:none;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <div class="al-lbl">Ora declansare</div>
+          <input id="alertaOraW" type="time" class="al-inp">
+        </div>
+        <div>
+          <div class="al-lbl">Repeta la fiecare</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input id="alertaWeekEvery" type="number" min="1" max="52" value="1" class="al-inp" style="width:70px;text-align:center">
+            <span style="color:var(--text-muted);font-size:13px">saptamana(i)</span>
+          </div>
+        </div>
+      </div>
+      <div class="al-lbl">Zilele saptamanii</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap" id="alertaWeekBtns">
+        <button class="alerta-day-btn" data-day="1">Lun</button>
+        <button class="alerta-day-btn" data-day="2">Mar</button>
+        <button class="alerta-day-btn" data-day="3">Mie</button>
+        <button class="alerta-day-btn" data-day="4">Joi</button>
+        <button class="alerta-day-btn" data-day="5">Vin</button>
+        <button class="alerta-day-btn" data-day="6">Sam</button>
+        <button class="alerta-day-btn" data-day="0">Dum</button>
+      </div>
+    </div>
+
+    <!-- ── LUNAR ──────────────────────────────────────────── -->
+    <div id="alertaMonthRow" style="display:none;margin-bottom:14px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div>
+          <div class="al-lbl">Ora declansare</div>
+          <input id="alertaOraL" type="time" class="al-inp">
+        </div>
+        <div>
+          <div class="al-lbl">Ziua din luna</div>
+          <input id="alertaMonthDay" type="number" min="1" max="31" value="1" class="al-inp" style="text-align:center">
+        </div>
+        <div>
+          <div class="al-lbl">Repeta la fiecare</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input id="alertaMonthEvery" type="number" min="1" max="24" value="1" class="al-inp" style="width:70px;text-align:center">
+            <span style="color:var(--text-muted);font-size:13px">luna(i)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:14px;flex-wrap:wrap">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+        <input type="checkbox" id="alertaInfinit" checked style="width:16px;height:16px;accent-color:var(--green);cursor:pointer">
+        <span style="font-size:13px;color:var(--text-dim)">Repeta la infinit</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none" title="Alarma va suna pentru toti utilizatorii conectati la Firebase">
+        <input type="checkbox" id="alertaGlobal" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer">
+        <span style="font-size:13px;color:var(--text-dim)">Global <span style="font-size:11px;opacity:.6">(toti userii)</span></span>
+      </label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+      <button id="alertaFormCancel" class="btn-secondary" style="font-size:12px;padding:7px 14px">Anuleaza</button>
+      <button id="alertaFormSave" style="padding:8px 18px;border-radius:7px;border:none;background:var(--green);color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Salveaza</button>
+    </div>
+  </div>
+
+  <!-- List of alerts -->
+  <div id="alertaList"></div>
+
+  </div><!-- /al-col alarm -->
+
+  <!-- COL: Remindere -->
+  <div class="al-col">
+
+  <div class="al-section-header al-section-header--reminder">
+    <div class="al-section-header-left">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Remindere</span>
+    </div>
+    <button id="btnAddReminder" class="btn-add" style="font-size:12px;padding:7px 14px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Adauga
+    </button>
+  </div>
+
+  <!-- Reminder Form -->
+  <div id="reminderForm" style="display:none;background:var(--surface2);border:1px solid var(--border-accent);border-radius:12px;padding:20px;margin-bottom:20px">
+    <div style="font-family:'Rajdhani',sans-serif;font-size:15px;font-weight:700;color:var(--gold-light);margin-bottom:16px" id="reminderFormTitle">Reminder Nou</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+      <div>
+        <div class="al-lbl">Nume</div>
+        <input id="reminderNume" type="text" placeholder="ex: Inregistrare Balathor" maxlength="60" class="al-inp">
+      </div>
+      <div>
+        <div class="al-lbl">Durata initiala</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input id="reminderH" type="number" min="0" max="99" value="0" class="al-inp" style="width:58px;text-align:center">
+          <span style="color:var(--text-muted);font-size:12px">h</span>
+          <input id="reminderM" type="number" min="0" max="59" value="0" class="al-inp" style="width:58px;text-align:center">
+          <span style="color:var(--text-muted);font-size:12px">min</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timp rămas personalizat -->
+    <div style="margin-bottom:14px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;margin-bottom:8px">
+        <input type="checkbox" id="reminderRemCheck" style="width:14px;height:14px;accent-color:var(--gold);cursor:pointer">
+        <span style="font-size:12px;color:var(--text-dim)">A trecut deja timp din durata <span style="opacity:.6">(seteaza timp ramas)</span></span>
+      </label>
+      <div id="reminderRemFields" style="display:none;align-items:center;gap:6px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--text-muted);margin-right:4px">Timp ramas:</span>
+        <input id="reminderRemH" type="number" min="0" max="99" value="0" class="al-inp" style="width:52px;text-align:center">
+        <span style="color:var(--text-muted);font-size:12px">h</span>
+        <input id="reminderRemM" type="number" min="0" max="59" value="0" class="al-inp" style="width:52px;text-align:center">
+        <span style="color:var(--text-muted);font-size:12px">min</span>
+        <input id="reminderRemS" type="number" min="0" max="59" value="0" class="al-inp" style="width:52px;text-align:center">
+        <span style="color:var(--text-muted);font-size:12px">sec</span>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none" title="Reminder vizibil pentru toti utilizatorii conectati">
+        <input type="checkbox" id="reminderGlobal" style="width:16px;height:16px;accent-color:var(--gold);cursor:pointer">
+        <span style="font-size:13px;color:var(--text-dim)">Global <span style="font-size:11px;opacity:.6">(toti userii)</span></span>
+      </label>
+    </div>
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="reminderFormCancel" class="btn-secondary" style="font-size:12px;padding:7px 14px">Anuleaza</button>
+      <button id="reminderFormSave" style="padding:8px 18px;border-radius:7px;border:none;background:var(--green);color:#fff;font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:700;cursor:pointer">Salveaza</button>
+    </div>
+  </div>
+
+  <!-- Reminder List -->
+  <div id="reminderList"></div>
+
+  </div><!-- /al-col reminder -->
+
+</div><!-- /al-two-col -->
+</div><!-- /tab-alerte -->

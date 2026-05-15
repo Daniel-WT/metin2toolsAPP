@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="ro" style="scroll-behavior:smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metin2 Tools</title>
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="X-XSS-Protection" content="1; mode=block">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()">
+<link rel="icon" type="image/png" href="img/icons/logo.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#080910">
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<script src="js/auth.js"></script>
+
+<div id="pw-gate" style="display:none;position:fixed;inset:0;z-index:99999;background:#050506;align-items:center;justify-content:center;font-family:'Inter',sans-serif;padding:24px;">
+  <div style="position:absolute;inset:0;background:radial-gradient(circle at 50% 50%, rgba(200,150,46,0.08) 0%, transparent 70%);"></div>
+  
+  <div class="auth-card" style="position:relative;background:#0c0c0e;border:1px solid rgba(255,255,255,0.08);border-radius:28px;padding:56px 48px;text-align:center;box-shadow:0 64px 128px rgba(0,0,0,0.9);width:100%;max-width:460px;overflow:hidden;transition:all 0.4s cubic-bezier(0.4,0,0.2,1);">
+    <style>
+      .auth-card:hover { border-color:rgba(200,150,46,0.3) !important; box-shadow:0 64px 128px rgba(0,0,0,0.9), 0 0 60px rgba(200,150,46,0.15) !important; }
+    </style>
+    <div style="position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,rgba(200,150,46,0.3),transparent);"></div>
+    
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:48px;">
+      <div style="width:84px;height:84px;border-radius:24px;background:#0c0c0e;border:1px solid rgba(200,150,46,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 28px;box-shadow:0 20px 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(200,150,46,0.05)">
+        <img src="img/icons/logo.png" style="width:48px;height:auto;" alt="MT">
+      </div>
+      <h2 style="font-family:'Rajdhani',sans-serif;font-size:36px;font-weight:700;color:#fff;margin:0;letter-spacing:-0.5px;line-height:1;">Welcome Back</h2>
+      <p style="font-size:10px;color:rgba(255,255,255,0.25);font-weight:900;text-transform:uppercase;letter-spacing:4px;margin-top:12px;">Metin2 Tools Suite</p>
+    </div>
+
+    
+    <div style="text-align:left;">
+      <div style="margin-bottom:28px;">
+        <label style="display:block;font-size:10px;color:rgba(255,255,255,0.35);font-weight:900;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:10px;margin-left:4px;">Security Code</label>
+        <div style="position:relative;">
+          <div style="position:absolute;left:20px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,0.15);display:flex;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+          </div>
+          <input id="pw-input" type="password" placeholder="••••••••" style="width:100%;box-sizing:border-box;padding:20px 20px 20px 52px;border-radius:16px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.02);color:#fff;font-size:15px;outline:none;transition:all 0.3s;letter-spacing:4px;font-family:'Inter',sans-serif;" onfocus="this.style.background='rgba(255,255,255,0.05)';this.style.borderColor='rgba(200,150,46,0.3)';this.style.boxShadow='0 0 20px rgba(200,150,46,0.05)'" onblur="this.style.background='rgba(255,255,255,0.02)';this.style.borderColor='rgba(255,255,255,0.04)';this.style.boxShadow='none'">
+        </div>
+      </div>
+
+      <button id="pw-btn" style="width:100%;padding:22px;border-radius:18px;border:none;background:linear-gradient(135deg,#c8962e,#f0b845);color:#0a0b0e;font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:1.5px;cursor:pointer;box-shadow:0 12px 40px rgba(200,150,46,0.25);display:flex;align-items:center;justify-content:center;gap:12px;transition:all 0.4s;font-family:'Rajdhani',sans-serif;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 20px 50px rgba(200,150,46,0.4)';this.style.filter='brightness(1.1)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 12px 40px rgba(200,150,46,0.25)';this.style.filter='none'">
+        Secure Access <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+      </button>
+
+      <div id="pw-err" style="margin-top:12px;padding:12px;border-radius:12px;background:rgba(224,82,82,0.1);border:1px solid rgba(224,82,82,0.2);color:#e05252;font-size:12px;opacity:0;transition:opacity 0.3s;text-align:center;">
+        Parola incorecta
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="app-root">
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-img-wrap"><img src="img/icons/logo.png" class="logo-img" alt="Logo"></div><span class="logo-tools-text">Metin2 Tools</span>
+    </div>
+    <div class="header-center">
+      <div class="next-spawn-widget" id="headerSpawnWidget" title="Urmatorul spawn">
+        <div class="nsw-content">
+          <div class="nsw-title">Următorul Spawn</div>
+          <div class="nsw-data">
+            <span id="headerSpawnLabel">Simpla</span>
+            <span id="headerSpawnTimer">--:--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="header-controls">
+      <div class="header-controls-row">
+        <div class="vol-control" id="volControl">
+          <button class="vol-btn" id="volBtn" title="Volum">
+            <svg id="volBtnIcon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          </button>
+          <div class="vol-popup" id="volPopup">
+            <div class="vol-popup-title">Volum</div>
+
+            <!-- Master -->
+            <div class="vol-master-group">
+              <div class="vol-group-row">
+                <span class="vol-label vol-label--master">Master</span>
+                <span class="vol-val" id="masterVolumeVal">80%</span>
+              </div>
+              <input type="range" class="vol-slider vol-slider--master" id="masterVolume" min="0" max="100" value="80">
+            </div>
+
+            <!-- Toggle channels -->
+            <button class="vol-channels-toggle" id="volChannelsToggle" title="Per canal">
+              <span class="vol-toggle-line"></span>
+              <svg class="vol-toggle-chevron" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+              <span class="vol-toggle-line"></span>
+            </button>
+
+            <!-- Per-canal -->
+            <div class="vol-channels" id="volChannels">
+              <div class="vol-group">
+                <div class="vol-group-row">
+                  <span class="vol-label">Spawn</span>
+                  <span class="vol-val" id="spawnAlarmVolumeVal">80%</span>
+                </div>
+                <input type="range" class="vol-slider" id="spawnAlarmVolume" min="0" max="100" value="80">
+              </div>
+              <div class="vol-group">
+                <div class="vol-group-row">
+                  <span class="vol-label">Alarme &amp; Remindere</span>
+                  <span class="vol-val" id="alerteVolumeVal">80%</span>
+                </div>
+                <input type="range" class="vol-slider" id="alerteVolumeSlider" min="0" max="100" value="80">
+              </div>
+              <div class="vol-group">
+                <div class="vol-group-row">
+                  <span class="vol-label">Servere</span>
+                  <span class="vol-val" id="ssVolumeVal">80%</span>
+                </div>
+                <input type="range" class="vol-slider" id="ssVolumeSlider" min="0" max="100" value="80">
+              </div>
+              <div class="vol-group">
+                <div class="vol-group-row">
+                  <span class="vol-label">Costume</span>
+                  <span class="vol-val" id="costumeVolumeVal">80%</span>
+                </div>
+                <input type="range" class="vol-slider" id="costumeVolumeSlider" min="0" max="100" value="80">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="notif-bell-wrap">
+          <div class="notif-bell" id="notifBell" title="Notificari">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </div>
+          <div class="notif-panel" id="notifPanel">
+            <div class="notif-panel-header">
+              <span class="notif-panel-title">Notificari</span>
+              <button class="notif-clear-btn" id="notifClearAll" title="Sterge toate notificarile">Goleste</button>
+            </div>
+            <div class="notif-panel-pinned" id="notifPinned"></div>
+            <div class="notif-panel-list" id="notifList">
+              <div class="notif-empty" id="notifEmpty">Nicio notificare.</div>
+            </div>
+          </div>
+        </div>
+        <button class="header-icon-btn" id="m2UserBtn" title="Profil jucator" onclick="showNameSetupModal(function(n,c){renderSpawnTables();buildMapDots();updateUserBtn();})">
+          <span class="header-profile-dot" id="profileDot"></span>
+          <span class="header-profile-name" id="profileName"></span>
+        </button>
+      </div>
+      <div class="header-right" id="liveTime">—</div>
+    </div>
+  </div>
+
+  <!-- Main Tabs -->
+  <div class="main-tabs">
+    <button class="main-tab active" data-tab="skin-reminder">Costume</button>
+    <button class="main-tab" data-tab="insotitori-site">Insotitori</button>
+    <button class="main-tab" data-tab="inventory-manager">Inventar</button>
+    <button class="main-tab" data-tab="spawn">Spawn</button>
+    <button class="main-tab" data-tab="alerte">Alarme</button>
+    <button class="main-tab" data-tab="server-status">Servere</button>
+    <button class="main-tab" data-tab="transfers">Transferuri</button>
+    <button class="main-tab" data-tab="checklist">Checklist</button>
+    <button class="main-tab main-tab--admin" id="tab-btn-secret" data-tab="secret" style="display:none">Admin</button>
+  </div>
+
+  <!-- INJECT: components/tab-skin-reminder.html -->
+<div id="tab-skin-reminder-container"></div>
+
+  <!-- INJECT: components/tab-insotitori-site.html -->
+<div id="tab-insotitori-site-container"></div>
+
+  <!-- INJECT: components/tab-inventory-manager.html -->
+<div id="tab-inventory-manager-container"></div>
+<!-- INJECT: components/tab-spawn.html -->
+<div id="tab-spawn-container"></div>
+
+<!-- INJECT: components/tab-alerte.html -->
+<div id="tab-alerte-container"></div>
+
+<!-- INJECT: components/tab-server-status.html -->
+<div id="tab-server-status-container"></div>
+
+<!-- INJECT: components/tab-transferuri.html -->
+<div id="tab-transferuri-container"></div>
+
+<!-- INJECT: components/tab-checklist.html -->
+<div id="tab-checklist-container"></div>
+
+<!-- INJECT: components/tab-secret.html -->
+<div id="tab-secret-container"></div>
+
+
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal alert-modal">
+    <div class="alert-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></div>
+    <div class="alert-title" style="color:var(--red)">Sterge Item</div>
+    <div class="alert-body" id="deleteBody"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="deleteCancel">Anuleaza</button>
+      <button class="btn-primary" id="deleteConfirm" style="background:linear-gradient(135deg,var(--red),#f07070);color:#fff">✕ Sterge</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-title">Adauga Item Temporar</div>
+
+    <div class="form-group form-slide" id="nameGroup">
+      <label class="form-label" id="nameLabel">Nume Item</label>
+      <input class="form-input" id="addName" placeholder="ex: Roba neagra profet" type="text">
+    </div>
+
+    <div class="form-group form-slide" id="szImageGroup">
+      <label class="form-label">Imagine item <span class="form-label-hint">Ctrl+V</span></label>
+      <div class="sz-paste-area" id="szPasteArea">
+        <div class="sz-paste-hint" id="szPasteHint">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 6H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2"/><path d="M12 12v4m-2-2h4"/></svg>
+          <span>Apasa Ctrl+V pentru a lipi imaginea itemului</span>
+        </div>
+        <img class="sz-paste-preview" id="szPastePreview" alt="item preview">
+      </div>
+    </div>
+
+    <div class="form-group form-slide" id="genderGroup">
+      <label class="form-label">Gen</label>
+      <div class="gender-toggle">
+        <button class="gender-btn" id="genderF" type="button"><img src="img/icons/female.png" width="15" height="15" style="object-fit:contain"> Feminin</button>
+        <button class="gender-btn" id="genderM" type="button"><img src="img/icons/male.png" width="15" height="15" style="object-fit:contain"> Masculin</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Nume caracter</label>
+      <input class="form-input" id="addAccount" placeholder="ex: Kharleman" type="text">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Categorie</label>
+      <div class="cat-selector" id="catSelector">
+        <div class="cat-option" data-cat="skin-arma"><span class="cat-opt-icon"><img src="img/icons/arma.png" width="22" height="22" style="object-fit:contain"></span>Skin Arma</div>
+        <div class="cat-option" data-cat="costum"><span class="cat-opt-icon"><img src="img/icons/costum_m.png" width="22" height="22" style="object-fit:contain"></span>Costum</div>
+        <div class="cat-option" data-cat="frizura"><span class="cat-opt-icon"><img src="img/icons/frizura_m.png" width="22" height="22" style="object-fit:contain"></span>Frizura</div>
+        <div class="cat-option" data-cat="atac-auto"><span class="cat-opt-icon"><img src="img/icons/atac.png" width="22" height="22" style="object-fit:contain"></span>Atac Auto</div>
+        <div class="cat-option" data-cat="manusa"><span class="cat-opt-icon"><img src="img/icons/manusa.png" width="22" height="22" style="object-fit:contain"></span>Manusa</div>
+        <div class="cat-option" data-cat="insotitor"><span class="cat-opt-icon"><img src="img/icons/insotitor.png" width="22" height="22" style="object-fit:contain"></span>Insotitor</div>
+        <div class="cat-option" data-cat="sase-sapte"><span class="cat-opt-icon"><img src="img/icons/67.png" width="22" height="22" style="object-fit:contain"></span>Bonus 6/7</div>
+      </div>
+    </div>
+
+    <div class="form-group" id="durationGroup">
+      <label class="form-label">Durata ramasa</label>
+      <div class="duration-row">
+        <div class="duration-col">
+          <label>Zile</label>
+          <input class="form-input" id="addDays" type="number" min="0" max="999" value="0" placeholder="0">
+        </div>
+        <div class="duration-col">
+          <label>Ore</label>
+          <input class="form-input" id="addHours" type="number" min="0" max="23" value="0" placeholder="0">
+        </div>
+        <div class="duration-col">
+          <label>Minute</label>
+          <input class="form-input" id="addMins" type="number" min="0" max="59" value="0" placeholder="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" id="addCancel">Anuleaza</button>
+      <button class="btn-primary" id="addConfirm">Adauga</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENEW MODAL -->
+<div class="modal-overlay" id="renewModal">
+  <div class="modal">
+    <div class="modal-title" id="renewTitle">Reinnoieste</div>
+    <div class="form-group">
+      <label class="form-label">Durata noua</label>
+      <div class="duration-row">
+        <div class="duration-col">
+          <label>Zile</label>
+          <input class="form-input" id="rDays" type="number" min="0" max="999" value="0">
+        </div>
+        <div class="duration-col">
+          <label>Ore</label>
+          <input class="form-input" id="rHours" type="number" min="0" max="23" value="0">
+        </div>
+        <div class="duration-col">
+          <label>Minute</label>
+          <input class="form-input" id="rMins" type="number" min="0" max="59" value="0">
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="renewCancel">Anuleaza</button>
+      <button class="btn-primary" id="renewConfirm">Reinnoieste</button>
+    </div>
+  </div>
+</div>
+
+<!-- FEED MODAL -->
+<div class="modal-overlay" id="feedModal">
+  <div class="modal">
+    <div class="modal-title">Hraneste Insotitor</div>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:18px;line-height:1.6;">
+      Timerul va fi resetat la durata initiala.<br>
+      <span style="color:var(--green)" id="feedInitialInfo"></span>
+    </p>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="feedCancel">Anuleaza</button>
+      <button class="btn-primary feed" id="feedConfirm" style="background:linear-gradient(135deg,var(--green),#6dd9a0);color:#0a0b0e">Hraneste</button>
+    </div>
+  </div>
+</div>
+
+<!-- PERSONALIZE CONFIRM MODAL -->
+<div class="modal-overlay" id="persModal">
+  <div class="modal alert-modal">
+    <div class="alert-icon" id="persIcon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+    <div class="alert-title" id="persTitle">Confirmare</div>
+    <div class="alert-body" id="persBody"></div>
+    <div class="modal-actions" id="persActions" style="flex-direction:column;gap:8px;">
+      <button class="btn-primary" id="persConfirm">Confirma</button>
+      <button class="btn-primary" id="persInstant" style="background:linear-gradient(135deg,var(--green),#6dd9a0);color:#0a0b0e;display:none">Depersonalizare instanta (corectare eroare)</button>
+      <button class="btn-secondary" id="persCancel">Anuleaza</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOURLY URGENT ALERT MODAL -->
+<div class="modal-overlay" id="hourlyAlertModal">
+  <div class="modal alert-modal" style="border-color:rgba(220,40,40,0.5)">
+    <div class="alert-icon" style="animation:pulse-red 0.8s ease-in-out infinite alternate"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+    <div class="alert-title" style="color:var(--red);font-size:20px;letter-spacing:0.5px">URGENT — Expira in <span id="hourlyAlertHours">?</span>!</div>
+    <div class="alert-body" id="hourlyAlertBody"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="hourlyAlertOk" style="background:linear-gradient(135deg,var(--red),#f07070);color:#fff;font-weight:700">Am inteles — Reinnoiesc acum</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT 1 DAY MODAL -->
+<div class="modal-overlay" id="alert1Modal">
+  <div class="modal alert-modal">
+    <div class="alert-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+    <div class="alert-title" style="color:var(--orange)">Expira in mai putin de 24h!</div>
+    <div class="alert-body" id="alert1Body"></div>
+    <div class="modal-actions">
+      <button class="btn-primary alert-ok" id="alert1Ok">Am inteles</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALERT 4 DAY MODAL -->
+<div class="modal-overlay" id="alert4Modal">
+  <div class="modal alert-modal">
+    <div class="alert-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+    <div class="alert-title" style="color:var(--purple)">Atentie — Expira in 4 zile!</div>
+    <div class="alert-body" id="alert4Body"></div>
+    <div class="modal-actions">
+      <button class="btn-primary alert-ok4" id="alert4Ok">Am inteles</button>
+    </div>
+  </div>
+</div>
+
+<!-- 6/7 COMPLETED ALERT MODAL -->
+<div class="modal-overlay" id="szAlertModal">
+  <div class="modal alert-modal">
+    <div class="alert-icon">✅</div>
+    <div class="alert-title" style="color:var(--green)">6/7 Finalizat!</div>
+    <div class="alert-body" id="szAlertBody"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="szAlertOk" style="background:var(--green);color:#fff">Am verificat</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECRET ADD MODAL -->
+<div class="modal-overlay" id="secretAddModal">
+  <div class="modal">
+    <div class="modal-title">Adauga Item Secret</div>
+    <div class="form-group">
+      <label class="form-label">Imagine item <span class="form-label-hint">Ctrl+V</span></label>
+      <div class="sz-paste-area" id="secretPasteArea">
+        <div class="sz-paste-hint" id="secretPasteHint">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M8 6H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-2"/><path d="M12 12v4m-2-2h4"/></svg>
+          <span>Apasa Ctrl+V pentru a lipi imaginea</span>
+        </div>
+        <img class="sz-paste-preview" id="secretPastePreview" alt="item preview">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nume Item</label>
+      <input class="form-input" id="secretAddName" placeholder="ex: Roba neagra profet" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Timp pana la depersonalizare</label>
+      <div class="duration-row">
+        <div class="duration-col"><label>Zile</label><input class="form-input" id="secretAddDays" type="number" min="0" max="999" value="0"></div>
+        <div class="duration-col"><label>Ore</label><input class="form-input" id="secretAddHours" type="number" min="0" max="23" value="0"></div>
+        <div class="duration-col"><label>Minute</label><input class="form-input" id="secretAddMins" type="number" min="0" max="59" value="0"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="secretAddCancel">Anuleaza</button>
+      <button class="btn-primary" id="secretAddConfirm">Adauga</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECRET EDIT TIME MODAL -->
+<div class="modal-overlay" id="secretEditModal">
+  <div class="modal">
+    <div class="modal-title">Schimba Timp Ramas</div>
+    <div class="form-group">
+      <label class="form-label">Timp nou pana la depersonalizare</label>
+      <div class="duration-row">
+        <div class="duration-col"><label>Zile</label><input class="form-input" id="secretEditDays" type="number" min="0" max="999" value="0"></div>
+        <div class="duration-col"><label>Ore</label><input class="form-input" id="secretEditHours" type="number" min="0" max="23" value="0"></div>
+        <div class="duration-col"><label>Minute</label><input class="form-input" id="secretEditMins" type="number" min="0" max="59" value="0"></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="secretEditCancel">Anuleaza</button>
+      <button class="btn-primary" id="secretEditConfirm">Salveaza</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECRET DELETE MODAL -->
+<div class="modal-overlay" id="secretDeleteModal">
+  <div class="modal alert-modal">
+    <div class="alert-title" style="color:var(--red)">Sterge Item Secret</div>
+    <div class="alert-body" id="secretDeleteBody"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="secretDeleteCancel">Anuleaza</button>
+      <button class="btn-primary" id="secretDeleteConfirm" style="background:linear-gradient(135deg,var(--red),#f07070);color:#fff">Sterge</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECRET ALERT MODAL (admin only) -->
+<div class="modal-overlay" id="secretAlertModal">
+  <div class="modal alert-modal">
+    <div class="alert-title" style="color:var(--red)">Depersonalizare Finalizata!</div>
+    <div class="alert-body" id="secretAlertBody"></div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="secretAlertOk" style="background:linear-gradient(135deg,var(--red),#f07070);color:#fff">Am verificat</button>
+    </div>
+  </div>
+</div>
+
+<!-- INV ADD MODAL -->
+<div class="modal-overlay" id="invAddModal">
+  <div class="modal">
+    <div class="modal-title" style="display:flex;align-items:center;gap:8px"><img src="img/icons/productmanagement.png" width="22" height="22" style="object-fit:contain;opacity:.8"> Adauga Item in Inventar</div>
+    <div class="form-group">
+      <label class="form-label">Nume Item</label>
+      <input class="form-input" id="invAddName" placeholder="ex: Piatra magica" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Cont initial</label>
+      <div style="display:grid;grid-template-columns:1fr 70px;gap:8px;margin-bottom:6px">
+        <input class="form-input" id="invAddAccount" placeholder="Nume caracter" type="text">
+        <input class="form-input" id="invAddQty" type="number" min="1" value="1" placeholder="Cant.">
+      </div>
+      <input class="form-input" id="invAddPlatform" placeholder="Platforma (ex: Steam, Gameforge...)" type="text" style="margin-bottom:6px">
+      <input class="form-input" id="invAddEmail" placeholder="Email cont (optional)" type="text">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Poza item (optional)</label>
+      <div class="img-upload-area" id="invUploadArea">
+        <span class="upload-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+        <span>Click, trage poza sau <kbd style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:1px 5px;font-size:10px;font-family:monospace">Ctrl+V</kbd></span>
+        <input type="file" id="invImageInput" accept="image/*">
+      </div>
+      <img id="invImgPreview" class="img-preview" style="display:none;margin-top:6px;" alt="preview">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="invAddCancel">Anuleaza</button>
+      <button class="btn-primary" id="invAddConfirm">Adauga</button>
+    </div>
+  </div>
+</div>
+
+<!-- INV DETAIL MODAL -->
+<div class="modal-overlay" id="invDetailModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title" id="invDetailTitle" style="display:flex;align-items:center;gap:8px"><img src="img/icons/productmanagement.png" width="22" height="22" style="object-fit:contain;opacity:.8"> Item</div>
+    <div class="inv-detail-img" id="invDetailImg"></div>
+
+    <!-- Total badge -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted)">Conturi</span>
+      <div id="invDetailTotal" style="display:flex;align-items:center;gap:6px;background:var(--gold-dim);border:1px solid rgba(200,150,46,0.35);border-radius:8px;padding:4px 12px">
+        <span style="font-size:11px;color:var(--text-muted)">Total:</span>
+        <span id="invTotalQtyVal" style="font-family:Rajdhani,sans-serif;font-size:18px;font-weight:700;color:var(--gold-light)">0</span>
+        <span style="font-size:11px;color:var(--text-muted)">buc.</span>
+      </div>
+    </div>
+
+    <div class="inv-accounts-list" id="invDetailAccounts"></div>
+
+    <!-- Add depot row -->
+    <div style="margin-top:8px">
+      <div style="display:grid;grid-template-columns:1fr 70px;gap:6px;margin-bottom:5px">
+        <input class="form-input" id="invNewAccount" placeholder="Nume caracter" type="text">
+        <input class="form-input" id="invNewAccountQty" type="number" min="1" value="1" placeholder="Cant.">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px">
+        <input class="form-input" id="invNewPlatform" placeholder="Platforma" type="text">
+        <input class="form-input" id="invNewEmail" placeholder="Email (optional)" type="text">
+        <button class="btn-primary" id="invAddAccountBtn" style="padding:9px 12px;white-space:nowrap">+ Adauga</button>
+      </div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-secondary" id="invDetailClose">Inchide</button>
+      <button class="btn-primary" id="invDetailEdit" style="background:linear-gradient(135deg,var(--blue),#7ab8f5);color:#0a0b0e">Editeaza</button>
+      <button class="btn-primary" id="invDetailDelete" style="background:linear-gradient(135deg,var(--red),#f07070);color:#fff">✕ Sterge</button>
+    </div>
+  </div>
+</div>
+
+<!-- INV EDIT MODAL -->
+<div class="modal-overlay" id="invEditModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">Editeaza Item</div>
+    <div class="form-group">
+      <label class="form-label">Nume Item</label>
+      <input class="form-input" id="invEditName" type="text" placeholder="ex: Piatra magica">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Poza item</label>
+      <div id="invEditImgWrap">
+        <div class="img-upload-area" id="invEditUploadArea">
+          <span class="upload-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
+          <span>Click, trage poza sau <kbd style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:1px 5px;font-size:10px;font-family:monospace">Ctrl+V</kbd></span>
+          <input type="file" id="invEditImageInput" accept="image/*">
+        </div>
+        <img id="invEditImgPreview" class="img-preview" style="display:none;margin-top:6px;" alt="preview">
+        <button id="invEditRemoveImg" style="display:none;margin-top:6px;background:none;border:1px solid var(--border-accent);border-radius:6px;padding:4px 10px;color:var(--text-muted);font-size:11px;cursor:pointer;width:100%;transition:all 0.15s" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border-accent)';this.style.color='var(--text-muted)'">✕ Elimina poza</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="invEditCancel">Anuleaza</button>
+      <button class="btn-primary" id="invEditConfirm">Salveaza</button>
+    </div>
+  </div>
+</div>
+
+<!-- INV DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="invDeleteModal">
+  <div class="modal alert-modal">
+    <div class="alert-icon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="1.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></div>
+    <div class="alert-title" style="color:var(--red)">Sterge Item</div>
+    <div class="alert-body" id="invDeleteBody"></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="invDeleteCancel">Anuleaza</button>
+      <button class="btn-primary" id="invDeleteConfirm" style="background:linear-gradient(135deg,var(--red),#f07070);color:#fff">✕ Sterge</button>
+    </div>
+  </div>
+</div>
+
+<!-- FIREBASE SETUP MODAL -->
+<div class="modal-overlay" id="firebaseModal">
+  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
+    <div class="modal-title">Configurare Firebase</div>
+
+    <div id="fbSetupGuide">
+      <p style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.6">
+        Firebase iti permite sa sincronizezi datele cu alti utilizatori in timp real. Urmeaza pasii de mai jos — dureaza ~5 minute.
+      </p>
+
+      <div class="setup-step">
+        <div class="setup-step-num">1</div>
+        <div class="setup-step-body">
+          Mergi la <strong><a href="https://console.firebase.google.com" target="_blank" style="color:var(--gold-light)">console.firebase.google.com</a></strong> si autentifica-te cu contul Google.
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">2</div>
+        <div class="setup-step-body">
+          Apasa <strong>„Add project"</strong> → da un nume (ex: <code>metin2-tools</code>) → dezactiveaza Google Analytics → <strong>Create project</strong>.
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">3</div>
+        <div class="setup-step-body">
+          In proiect, apasa pictograma <strong>&lt;/&gt; (Web)</strong> → da un nume aplicatiei → apasa <strong>Register app</strong>. Vei vedea un obiect <code>firebaseConfig</code> — copiaza valorile de acolo jos.
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">4</div>
+        <div class="setup-step-body">
+          Din meniu stanga → <strong>Build → Realtime Database</strong> → <strong>Create database</strong> → alege locatia (<code>europe-west1</code> recomandat) → <strong>Start in test mode</strong> → Enable.
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="setup-step-num">5</div>
+        <div class="setup-step-body">
+          Copiaza URL-ul bazei de date (arata ca <code>https://metin2-tools-default-rtdb.europe-west1.firebasedatabase.app</code>) si introdu-l mai jos.
+        </div>
+      </div>
+
+      <div class="setup-divider"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">API Key</label>
+      <input class="form-input" id="fbApiKey" placeholder="AIzaSy...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Database URL <span style="color:var(--red)">*</span></label>
+      <input class="form-input" id="fbDatabaseURL" placeholder="https://proiect-default-rtdb.europe-west1.firebasedatabase.app">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Project ID</label>
+      <input class="form-input" id="fbProjectId" placeholder="metin2-tools-12345" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">App ID</label>
+      <input class="form-input" id="fbAppId" placeholder="1:123456789:web:abc123...">
+    </div>
+
+    <div id="fbStatus" style="display:none;padding:10px 12px;border-radius:var(--radius);font-size:12px;margin-top:8px"></div>
+
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="btn-secondary" id="fbCancel" style="flex:0 0 auto">Inchide</button>
+      <button class="btn-secondary" id="fbDisconnect" style="flex:0 0 auto;display:none;border-color:rgba(224,82,82,0.4);color:var(--red)">Deconecteaza</button>
+      <button class="btn-primary" id="fbConnect" style="flex:1">Conecteaza</button>
+    </div>
+  </div>
+</div>
+
+<!-- Spawn History Modal -->
+<div class="modal-overlay" id="spawnHistoryModal">
+  <div class="modal" style="max-width:800px;max-height:88vh;display:flex;flex-direction:column;width:96vw">
+    <div class="modal-header" style="display:flex;align-items:center;gap:10px">
+      <h3 style="margin:0;font-size:16px;font-weight:700">Istoric Spawnuri</h3>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="spawn-hist-tab-btn active" id="btnHistList" title="Istoric">Istoric</button>
+        <button class="spawn-hist-tab-btn" id="btnHistProb" title="Probabilitati">Probabilitati</button>
+        <button class="spawn-hist-tab-btn" id="btnHistExport" title="Export Excel"><svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" style="vertical-align:middle;margin-right:2px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>Export</button>
+        <button class="spawn-hist-tab-btn spawn-hist-tab-btn--debug" id="btnHistDebug" title="Debug tip spawn" style="display:none">Debug</button>
+      </div>
+      <div style="flex:1"></div>
+      <button class="sh-close-btn" id="spawnHistoryClose"><svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="sh-legend">
+      <span class="sh-legend-item"><span class="sh-legend-dot sh-legend-dot-sef"></span> Capetenii</span>
+      <span class="sh-legend-item"><span class="sh-legend-dot sh-legend-dot-gen"></span> Generali</span>
+    </div>
+    <div class="sh-date-filter" id="shDateFilter">
+      <label class="sh-df-label">Perioada:</label>
+      <input type="date" class="sh-df-input" id="shDateFrom" title="De la">
+      <span class="sh-df-sep">—</span>
+      <input type="date" class="sh-df-input" id="shDateTo" title="Pana la">
+      <button class="sh-df-clear" id="shDateClear" title="Reseteaza filtrul">Toate</button>
+    </div>
+    <div id="spawnHistoryList" style="overflow-y:auto;flex:1;padding:4px 0"></div>
+    <div id="spawnHistoryProb" style="overflow-y:auto;flex:1;padding:4px 0;display:none"></div>
+    <div id="spawnTypeLogContent" style="overflow-y:auto;flex:1;padding:4px 0;display:none"></div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal" style="max-width:340px">
+    <div class="profile-modal-avatar" id="profileModalAvatar">?</div>
+    <div class="modal-title" style="justify-content:center">Profil jucator</div>
+    <div class="form-group">
+      <label class="form-label">Nume</label>
+      <input class="form-input" id="profileNameInput" placeholder="Introdu numele tau" type="text">
+    </div>
+    <div class="form-group" style="text-align:center">
+      <label class="form-label">Culoare</label>
+      <div class="color-picker-compact">
+        <div class="color-picker-current" id="profileCurrentColor"></div>
+        <div class="color-picker-dropdown">
+          <div class="color-swatch-grid" id="profileColorSwatches"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="profileCancel">Anuleaza</button>
+      <button class="btn-primary" id="profileSave">Salveaza</button>
+    </div>
+    <div class="profile-logout-row">
+      <a href="javascript:void(0)" onclick="handleLogout()" class="profile-logout-btn">Deconecteaza-te</a>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGELOG MODAL -->
+<div class="modal-overlay" id="changelogModal">
+  <div class="modal changelog-modal">
+    <div class="modal-title">Noutati</div>
+    <div class="changelog-list">
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.9.5</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Discord Alerts: fix bug sincronizare dedup — markerii de alertă sunt acum șterși corect la reînnoirea unui item pe orice dispozitiv</div>
+        <div class="changelog-item">Worker: îmbunătățit logging pentru depanarea alertelor automate</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.9.4</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Securitate: fix race condition la salvarea itemelor (Sync Firebase); reînnoirea unui item șterge acum istoricul de notificări Discord pentru a evita alerte "fantomă"</div>
+        <div class="changelog-item">XSS Protection: adăugat utilitar global de sanitizare HTML ca măsură de siguranță preventivă</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.9.3</span>
+          <span class="changelog-tag tag-ui">UI</span>
+        </div>
+        <div class="changelog-item">Design modernizat: glassmorphism mai intutiv pe pop-out-uri si modal-uri, border-radius mărit, umbre finisate pe item-cards la hover, scrollbars custom globalizate</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.9.2</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Adaugat functie de Editeaza la Reminder Costume/6-7</div>
+        <div class="changelog-item">Alarme/Checklists sincronizate global (UTC)</div>
+        <div class="changelog-item">Pop-out Timp Spawn pastreaza input-urile focusate la update</div>
+        <div class="changelog-item">Input CH "batut" din nou editabil</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.9.1</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: SURSA arata "sincronizat Firebase" sau "detectie locala" + ora; Force Refresh inarca corect cel mai recent snapshot; dedup detectie bazat pe timestamp</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.9.0</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: fix bucla infinita la loadPlayerSnapshot cand snapshot-ul nu exista — pagina nu mai ingheata</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.9</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: Detecteaza salveaza global prin Firebase; Jucatori Scrape-uiti se incarca corect chiar daca data nu are snapshot; zona de click footer marita</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.8</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Transferuri: notificare toast cand automatizarile pornesc/finalizeaza scrape-ul; datele BEFORE/AFTER se actualizeaza automat via Firebase in timp real</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.7</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Automatizari: before scrape se declanseaza cand serverul devine OFFLINE (detectie TCP); after scrape se declanseaza automat cand highscores-ul se actualizeaza dupa revenirea serverului</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.6</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Transferuri: buton Force Refresh in sectiunea Jucatori Scrape-uiti — adminul poate forta reincarcarea snapshot-ului pentru toti utilizatorii conectati</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.5</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Calendar: scos filtrele pe categorii; calendarul arata doar Skin Arma, Costum, Frizura si Insotitor</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.4</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Calendar expirari: buton Calendar in toolbar, modal cu grid lunar, filtre pe categorii, click pe zi pentru detalii. Fiecare card arata acum data exacta de expirare.</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.3</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Checklist: datele sunt acum globale si sincronizate in timp real pentru toti utilizatorii (Firebase)</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.2</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Checklist: la declansarea unui reminder recurent, toate task-urile se reseteaza automat</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.1</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Checklist: reminder ratat apare in panoul din stanga-jos (langa skinurile care expira) pana il inchizi cu X</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.8.0</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Pop-out gheata: bordura coloana stare acum vizibila si neutra (alb subtil) — nici colorata, nici invizibila</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.9</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Pop-out gheata: bordurile coloanei de stare (Dead/Gen/Sef) nu mai apar colorate — se foloseste culoarea normala a tabelului</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.8</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Pop-out gheata: revert modificare CSS coloana stare — text-overflow:ellipsis era necesar pentru scaling corect</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.7</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Gheata: fix reset automat la spawn — clientii care pierd tranzactia Firebase nu mai rescriu date vechi dupa reset (race condition cu debounce)</div>
+        <div class="changelog-item">Pop-out gheata: fix aliniere coloana stare (text centrat corect, fara text-overflow care rupea alinierea)</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.6</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Checklist reminders: alerta pe site (banner sus) cu countdown 15s si sunet calm; daca nu inchizi — apare "Reminder ratat" in notificari</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.5</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Checklist: reminder per lista — zilnic, saptamanal, lunar, la ora setata; notificare browser sau toast daca notificarile nu sunt permise</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.3</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Tab nou: Checklist — creeaza liste cu sub-taskuri, bifezi/debifezi fiecare task, dai reset la toata lista, redenumesti orice</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.1</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Pop-out: badge tip spawn (Simpla/Dubla) in coltul de sus al fiecarui pop-out, se actualizeaza live la schimbarea tipului</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.7.0</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Admin: panou utilizatori online — admins vad cati utilizatori sunt conectati si numele fiecaruia (sau "Anonim" daca nu au setat un nume)</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.36</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Spawn: redesign complet mecanism switch tip spawn — nod unic _spawnCycle (in loc de _spawnSwitch + _spawnSwitchKey), deduplicare corecta multi-user via tranzactie Firebase, no double-trigger la recalibrare CH1</div>
+        <div class="changelog-item">Debug istoricul tipului de spawn: afiseaza acum din ce tip in ce tip s-a schimbat (ex: dublu &rarr; simplu)</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.35</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Spawn: tip spawn nu mai ramane acelasi dupa fiecare spawn — alternarea citea tipul din _spawnSwitch (invechit dupa reset manual) in loc de spawnType actual</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.34</span>
+          <span class="changelog-tag tag-ui">UI</span>
+        </div>
+        <div class="changelog-item">Admin: butoanele de detectie fuzionate intr-unul singur — un click ruleaza ambii algoritmi (transferuri + schimbari de nume) pe aceleasi date; grid 2 carduri</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.33</span>
+          <span class="changelog-tag tag-ui">UI</span>
+        </div>
+        <div class="changelog-item">Admin: butoanele de scrape reorganizate in 3 carduri — Colectare Date, Detectie Transferuri, Schimbari Nume; data snapshot selectabila direct din sectiunea admin</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.32</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: matching rescris pe nearest-neighbour — cel mai apropiat champExp castiga, al doilea trebuie sa fie semnificativ mai departe</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.31</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: revenire la praguri fixe pentru delta champExp — scaling pe CL nu ajuta (efectele se compenseaza)</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.30</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: toleranta delta champExp ajustata dupa tabelul de CL — mai larga la CL mic, mai stricta la CL mare</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.29</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: jucatorii deja prezenti pe serverul de destinatie nu mai pot fi folositi ca tinta falsa de transfer</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.28</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Transferuri: buton "Schimbari Nume" — detecteaza redenumiri pe acelasi server si actualizeaza lista de transferuri cu noul nume</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.27</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: matching mai precis — verifica si exp normal, ignora jucatorii [GA]/[GM]</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.26</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Popout Gheata: nume lung trunchiat cu "..." in loc sa iasa din tabel</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.25</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Transferuri: valorile de exp afisate exact, fara rotunjire in K/M</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.24</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Popout Gheata: coloana numarul camerei mai ingusta, tag-ul nu mai umple toata celula</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.22</span>
+          <span class="changelog-tag tag-feature">Functie</span>
+        </div>
+        <div class="changelog-item">Buton de deconectare adaugat in modalul de profil</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.20–21</span>
+          <span class="changelog-tag tag-ui">UI</span>
+        </div>
+        <div class="changelog-item">Tabul admin redenumit din "Secret" in "Admin"</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.19</span>
+          <span class="changelog-tag tag-ui">UI</span>
+        </div>
+        <div class="changelog-item">Notificare versiune noua redesignata: card floating in coltul dreapta-jos</div>
+        <div class="changelog-item">Iconita boss inlocuita cu o coroana aurie; filtrele de culoare remove</div>
+        <div class="changelog-item">Tabul Secret (admin) mai discret: culoare muta, fara rosu, opacitate redusa</div>
+        <div class="changelog-item">Butonul Noutati mutat in dreapta footer-ului</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.17–18</span>
+          <span class="changelog-tag tag-feature">Functie</span>
+        </div>
+        <div class="changelog-item">Expandare detalii jucator si comparare in vizualizatorul de snapshot-uri</div>
+        <div class="changelog-item">Incarcare automata a datelor inainte de crearea unui snapshot</div>
+        <div class="changelog-item">Buton Noutati in footer cu istoricul schimbarilor</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.15–16</span>
+          <span class="changelog-tag tag-ui">UI</span>
+        </div>
+        <div class="changelog-item">Fereastra Gheata: butoane GF afisate pe rand (side-by-side)</div>
+        <div class="changelog-item">Eticheta camerei pe toata latimea, butoane mai inalte, spatiu mai mare pentru CH</div>
+        <div class="changelog-item">Butoane si etichete scalate sa umple celulele disponibile</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.12–14</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Filtrele de culoare pentru iconite reparate (luminozitate fortata inainte de colorare)</div>
+        <div class="changelog-item">Inlocuit emoji craniu cu icon imagine colorat rosu</div>
+        <div class="changelog-item">Iconul boss devine sters cand e inactiv, verde doar la selectia Sef</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.9–11</span>
+          <span class="changelog-tag tag-ui">UI</span>
+        </div>
+        <div class="changelog-item">Iconitele din titlurile modalelor inversate corect la alb</div>
+        <div class="changelog-item">Iconul boss colorat verde pentru a se potrivi cu textul Sef</div>
+        <div class="changelog-item">Inlocuit emoji sabie cu icon boss in tabelele de popover</div>
+      </div>
+
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v3.6.10</span>
+          <span class="changelog-tag tag-feature">Functie</span>
+        </div>
+        <div class="changelog-item">Formularul de alarma/reminder se inchide daca apesi din nou pe butonul Adauga</div>
+      </div>
+
+    </div>
+    <div style="margin-top:20px">
+      <button class="btn-secondary" id="changelogClose" style="width:100%">Inchide</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPIRY CALENDAR MODAL -->
+<div class="modal-overlay" id="expiryCalModal">
+  <div class="modal ec-modal">
+    <div class="ec-modal-header">
+      <div class="modal-title" style="margin-bottom:0">Calendar expirari</div>
+      <button class="ec-close-btn" id="ecClose" title="Inchide">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Month navigation -->
+    <div class="ec-nav">
+      <button class="ec-nav-btn" id="ecPrevMonth" title="Luna anterioara">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="ec-month-label"></span>
+      <button class="ec-nav-btn" id="ecNextMonth" title="Luna urmatoare">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <!-- Weekday headers -->
+    <div class="ec-weekdays">
+      <div class="ec-weekday">Lu</div>
+      <div class="ec-weekday">Ma</div>
+      <div class="ec-weekday">Mi</div>
+      <div class="ec-weekday">Jo</div>
+      <div class="ec-weekday">Vi</div>
+      <div class="ec-weekday">Sa</div>
+      <div class="ec-weekday">Du</div>
+    </div>
+
+    <!-- Calendar grid -->
+    <div class="ec-grid"></div>
+
+    <!-- Day detail panel -->
+    <div class="ec-day-panel" id="ecDayPanel">
+      <div class="ec-day-empty">Selecteaza o zi pentru a vedea detaliile</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+
+<div class="footer-status">
+  <div class="footer-status-left">
+    <div class="conn-badge local" id="connBadge" title="Status sincronizare">
+      <div class="conn-dot"></div>
+      <span id="connLabel">Local</span>
+    </div>
+    <button class="footer-firebase-btn" id="btnFirebaseSetup" title="Configurare Firebase">Configurare sync</button>
+  </div>
+  <div class="footer-status-center">v4.2.0</div>
+  <div class="footer-status-right">
+    <div class="footer-online-wrap" id="footerOnlineWrap" style="display:none">
+      <button class="footer-firebase-btn footer-online-btn" id="btnOnlineUsers" title="Utilizatori online">0 online</button>
+      <div class="online-users-panel" id="onlineUsersPanel"></div>
+    </div>
+    <button class="footer-firebase-btn footer-changelog-btn" id="btnChangelog" title="Ultimele schimbari">Noutati</button>
+  </div>
+</div>
+
+<!-- EXPIRY CORNER REMINDER — persistent across all tabs, items < 24h -->
+<div id="expiryCornerReminder" style="display:none"></div>
+
+<script src="js/firebase-layer.js"></script>
+<script src="js/data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/skin-reminder.js"></script>
+<script src="js/sound-alerts.js"></script>
+<script src="js/ticker.js"></script>
+<script src="js/actions-modals.js"></script>
+<script src="js/insotitori.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/spawn.js"></script>
+<script src="js/drops.js"></script>
+<script src="js/alerte.js"></script>
+<script src="js/server-status.js"></script>
+<script src="js/transfers.js"></script>
+<script src="js/notif-center.js"></script>
+<script src="js/secret.js"></script>
+<script src="js/checklist.js"></script>
+<script src="js/expiry-calendar.js"></script>
+<script src="js/app.js"></script>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,550 @@
+{
+  "lastUpdated": "2026-04-29",
+  "transfers": [],
+  "history": [
+    {
+      "date": "2026-04-29",
+      "prevDate": "2026-04-29",
+      "transfers": [],
+      "nameChanges": []
+    },
+    {
+      "date": "2026-04-23",
+      "prevDate": "2026-04-23",
+      "transfers": [
+        {
+          "name": "Kitagawa",
+          "from": "Magyarorszag",
+          "to": "Polska",
+          "level": 120,
+          "champLevel": 17,
+          "exp": 625000000,
+          "champExp": 9177267,
+          "champExpBefore": 9156331,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 63,
+          "rankAfter": 261,
+          "champExpDelta": 20936
+        },
+        {
+          "name": "wonderSX",
+          "from": "Magyarorszag",
+          "to": "Romania",
+          "level": 120,
+          "champLevel": 16,
+          "exp": 625000000,
+          "champExp": 20850895,
+          "champExpBefore": 20850895,
+          "kingdom": "Imperiul Chunjo",
+          "rankBefore": 65,
+          "rankAfter": 114,
+          "champExpDelta": 0
+        },
+        {
+          "name": "MeeSsy",
+          "nameAfter": "75f4b7e1e126",
+          "from": "Magyarorszag",
+          "to": "Romania",
+          "level": 120,
+          "champLevel": 13,
+          "exp": 625000000,
+          "champExp": 1762378,
+          "champExpBefore": 1762378,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 91,
+          "rankAfter": 187,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "Delpih",
+          "nameAfter": "Delpiszek",
+          "from": "Polska",
+          "to": "Tara Romaneasca",
+          "level": 120,
+          "champLevel": 10,
+          "exp": 625000000,
+          "champExp": 1307702,
+          "champExpBefore": 1307702,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 704,
+          "rankAfter": 376,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "Morvex",
+          "nameAfter": "cd36fddfe2c7",
+          "from": "Romania",
+          "to": "Cesko",
+          "level": 120,
+          "champLevel": 10,
+          "exp": 625000000,
+          "champExp": 64,
+          "champExpBefore": 64,
+          "kingdom": "Imperiul Chunjo",
+          "rankBefore": 414,
+          "rankAfter": 136,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        }
+      ],
+      "nameChanges": [
+        {
+          "name": "ZORROxPVPx",
+          "nameAfter": "xZORROx",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 15,
+          "rank": 140,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "Bellum",
+          "nameAfter": "Sickick",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 8,
+          "rank": 480,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        }
+      ]
+    },
+    {
+      "date": "2026-04-22",
+      "prevDate": "2026-04-16",
+      "transfers": [
+        {
+          "name": "Hakurai",
+          "nameAfter": "[GA]Sirmium",
+          "from": "Polska",
+          "to": "Magyarorszag",
+          "level": 120,
+          "champLevel": 30,
+          "exp": 625000000,
+          "champExp": 50385113,
+          "champExpBefore": 50385113,
+          "kingdom": "Imperiul Chunjo",
+          "rankBefore": 7,
+          "rankAfter": 24,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "wonderSX",
+          "from": "Tara Romaneasca",
+          "to": "Magyarorszag",
+          "level": 120,
+          "champLevel": 16,
+          "exp": 625000000,
+          "champExp": 20153483,
+          "champExpBefore": 19924582,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 134,
+          "rankAfter": 69,
+          "champExpDelta": 228901
+        },
+        {
+          "name": "HardSudoku",
+          "from": "Cesko",
+          "to": "Polska",
+          "level": 120,
+          "champLevel": 14,
+          "exp": 625000000,
+          "champExp": 8938480,
+          "champExpBefore": 8938480,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 58,
+          "rankAfter": 371,
+          "champExpDelta": 0
+        },
+        {
+          "name": "Mizahri2",
+          "nameAfter": "AlNath",
+          "from": "Polska",
+          "to": "Tara Romaneasca",
+          "level": 120,
+          "champLevel": 5,
+          "exp": 625000000,
+          "champExp": 1800422,
+          "champExpBefore": 1780232,
+          "kingdom": "Imperiul Shinsoo",
+          "rankBefore": 1490,
+          "rankAfter": 1125,
+          "matchedByStats": true,
+          "matchConfidence": 97,
+          "champExpDelta": 20190
+        }
+      ],
+      "nameChanges": [
+        {
+          "name": "AnnaMondiala",
+          "nameAfter": "Visenya",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 8,
+          "rank": 506,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "Indara",
+          "nameAfter": "Bellum",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 8,
+          "rank": 475,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        }
+      ]
+    },
+    {
+      "date": "2026-04-16",
+      "prevDate": "2026-04-16",
+      "transfers": [
+        {
+          "name": "Hakurai",
+          "nameAfter": "[GA]Sirmium",
+          "from": "Polska",
+          "to": "Magyarorszag",
+          "level": 120,
+          "champLevel": 30,
+          "exp": 625000000,
+          "champExp": 50385113,
+          "champExpBefore": 50385113,
+          "kingdom": "Imperiul Chunjo",
+          "rankBefore": 7,
+          "rankAfter": 24,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "2Marian7",
+          "nameAfter": "xChuckNovys",
+          "from": "Romania",
+          "to": "Cesko",
+          "level": 120,
+          "champLevel": 26,
+          "exp": 625000000,
+          "champExp": 116959505,
+          "champExpBefore": 116959505,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 34,
+          "rankAfter": 20,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "Kitagaww",
+          "nameAfter": "RaduOF",
+          "from": "Polska",
+          "to": "Magyarorszag",
+          "level": 120,
+          "champLevel": 17,
+          "exp": 624400000,
+          "champExp": 2954222,
+          "champExpBefore": 2954222,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 261,
+          "rankAfter": 63,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "wonderSX",
+          "from": "Tara Romaneasca",
+          "to": "Magyarorszag",
+          "level": 120,
+          "champLevel": 16,
+          "exp": 625000000,
+          "champExp": 19924582,
+          "champExpBefore": 19924582,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 134,
+          "rankAfter": 69,
+          "champExpDelta": 0
+        },
+        {
+          "name": "HardSudoku",
+          "from": "Cesko",
+          "to": "Polska",
+          "level": 120,
+          "champLevel": 14,
+          "exp": 625000000,
+          "champExp": 8938480,
+          "champExpBefore": 8938480,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 58,
+          "rankAfter": 367,
+          "champExpDelta": 0
+        },
+        {
+          "name": "sMeSsy",
+          "nameAfter": "2a9648a748e6",
+          "from": "Tara Romaneasca",
+          "to": "Magyarorszag",
+          "level": 120,
+          "champLevel": 13,
+          "exp": 625000000,
+          "champExp": 446288,
+          "champExpBefore": 446288,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 206,
+          "rankAfter": 91,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "MagicWeapon",
+          "nameAfter": "ooAdeleoo",
+          "from": "Polska",
+          "to": "Tara Romaneasca",
+          "level": 120,
+          "champLevel": 11,
+          "exp": 625000000,
+          "champExp": 22460909,
+          "champExpBefore": 22460909,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 483,
+          "rankAfter": 281,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        }
+      ],
+      "nameChanges": [
+        {
+          "name": "Hatzegoptery",
+          "nameAfter": "Hola",
+          "server": "Cesko",
+          "level": 120,
+          "champLevel": 12,
+          "rank": 81,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "ssssssssa",
+          "nameAfter": "M3lancholi4",
+          "server": "Polska",
+          "level": 120,
+          "champLevel": 10,
+          "rank": 708,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "Indara",
+          "nameAfter": "Bellum",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 8,
+          "rank": 473,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "hatzhatzhatz",
+          "nameAfter": "Waffen",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 7,
+          "rank": 522,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "Mizahri2",
+          "nameAfter": "DemiusBM",
+          "server": "Polska",
+          "level": 120,
+          "champLevel": 5,
+          "rank": 1486,
+          "matchConfidence": 97,
+          "champExpDelta": 30554,
+          "nameChange": true
+        }
+      ]
+    },
+    {
+      "date": "2026-04-15",
+      "prevDate": "2026-04-08",
+      "transfers": [
+        {
+          "name": "TDI4ED1",
+          "from": "Cesko",
+          "to": "Polska",
+          "level": 120,
+          "champLevel": 18,
+          "exp": 624840000,
+          "champExp": 742943,
+          "champExpBefore": 742943,
+          "kingdom": "Imperiul Shinsoo",
+          "rankBefore": 39,
+          "rankAfter": 238,
+          "champExpDelta": 0
+        },
+        {
+          "name": "Frequency",
+          "nameAfter": "Glaaaaaaami",
+          "from": "Magyarorszag",
+          "to": "Polska",
+          "level": 120,
+          "champLevel": 15,
+          "exp": 625000000,
+          "champExp": 18420585,
+          "champExpBefore": 18420585,
+          "kingdom": "Imperiul Shinsoo",
+          "rankBefore": 71,
+          "rankAfter": 338,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        }
+      ],
+      "nameChanges": [
+        {
+          "name": "pueblo",
+          "nameAfter": "Gkoi",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 10,
+          "rank": 293,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        }
+      ]
+    },
+    {
+      "date": "2026-04-09",
+      "prevDate": "2026-04-08",
+      "transfers": [
+        {
+          "name": "TDI4ED1",
+          "nameAfter": "M3Z4",
+          "from": "Cesko",
+          "to": "Polska",
+          "level": 120,
+          "champLevel": 18,
+          "exp": 624840000,
+          "champExp": 742943,
+          "kingdom": "Imperiul Shinsoo",
+          "rankBefore": 39,
+          "rankAfter": 240,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "Frequency",
+          "nameAfter": "Glaaaaaaami",
+          "from": "Magyarorszag",
+          "to": "Polska",
+          "level": 120,
+          "champLevel": 15,
+          "exp": 625000000,
+          "champExp": 18420585,
+          "kingdom": "Imperiul Shinsoo",
+          "rankBefore": 71,
+          "rankAfter": 337,
+          "matchedByStats": true,
+          "matchConfidence": 100,
+          "champExpDelta": 0
+        },
+        {
+          "name": "Deepthroater",
+          "nameAfter": "AnnaMondiala",
+          "from": "Polska",
+          "to": "Romania",
+          "level": 120,
+          "champLevel": 8,
+          "exp": 625000000,
+          "champExp": 9163257,
+          "kingdom": "Imperiul Chunjo",
+          "rankBefore": 1006,
+          "rankAfter": 499,
+          "matchedByStats": true,
+          "matchConfidence": 90,
+          "champExpDelta": 947538
+        },
+        {
+          "name": "K4K4sHi",
+          "nameAfter": "CeriVoie",
+          "from": "Polska",
+          "to": "Romania",
+          "level": 120,
+          "champLevel": 5,
+          "exp": 624980000,
+          "champExp": 1299387,
+          "kingdom": "Imperiul Jinno",
+          "rankBefore": 1592,
+          "rankAfter": 955,
+          "matchedByStats": true,
+          "matchConfidence": 90,
+          "champExpDelta": 939372
+        }
+      ],
+      "nameChanges": [
+        {
+          "name": "pueblo",
+          "nameAfter": "Gkoi",
+          "server": "Romania",
+          "level": 120,
+          "champLevel": 10,
+          "rank": 290,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "Deepthroater",
+          "nameAfter": "MAHER",
+          "server": "Polska",
+          "level": 120,
+          "champLevel": 8,
+          "rank": 1010,
+          "matchConfidence": 100,
+          "champExpDelta": 0,
+          "nameChange": true
+        },
+        {
+          "name": "K4K4sHi",
+          "nameAfter": "Venoxai",
+          "server": "Polska",
+          "level": 120,
+          "champLevel": 5,
+          "rank": 1555,
+          "matchConfidence": 97,
+          "champExpDelta": 414733,
+          "nameChange": true
+        }
+      ]
+    },
+    {
+      "date": "2026-04-08",
+      "prevDate": "2026-04-08",
+      "transfers": []
+    }
+  ],
+  "nameChanges": []
+}

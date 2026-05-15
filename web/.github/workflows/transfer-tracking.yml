@@ -1,0 +1,52 @@
+name: Transfer Tracking
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Scrape mode: before or after (empty = auto-detect)'
+        required: false
+        default: ''
+      force_after:
+        description: 'Force after scrape without serverOnlineAt check (true/false)'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Create data directories
+        run: mkdir -p data/snapshots
+
+      - name: Run highscore scraper
+        run: node scripts/scrape-highscores.mjs
+        env:
+          FB_DATABASE_URL: ${{ secrets.FB_DATABASE_URL }}
+          SCRAPE_MODE: ${{ github.event.inputs.mode || '' }}
+          FORCE_AFTER: ${{ github.event.inputs.force_after || 'false' }}
+
+      - name: Commit and push results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update transfer tracking data $(date +%Y-%m-%d)"
+            git push
+          fi
+

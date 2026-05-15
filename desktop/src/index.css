@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bg-primary text-slate-100 font-sans antialiased;
+  }
+  
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Outfit', sans-serif;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-bg-secondary/70 backdrop-blur-xl border border-white/5;
+  }
+  
+  .card {
+    @apply bg-bg-secondary border border-white/5 rounded-2xl p-6 transition-all duration-300 hover:border-white/10 hover:bg-bg-tertiary hover:-translate-y-0.5 shadow-xl shadow-black/20;
+  }
+  
+  .btn-primary {
+    @apply bg-accent-gold text-black font-bold px-6 py-3 rounded-xl transition-all duration-200 hover:bg-accent-goldHover hover:-translate-y-0.5 hover:shadow-lg hover:shadow-accent-gold/20 active:translate-y-0 uppercase tracking-widest text-sm font-display;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 15px rgba(200, 150, 46, 0.4), 0 0 25px rgba(200, 150, 46, 0.2); }
+  50% { box-shadow: 0 0 30px rgba(200, 150, 46, 0.8), 0 0 50px rgba(200, 150, 46, 0.4); }
+}
+
+.room-on-fire {
+  animation: pulse-gold 2s infinite ease-in-out !important;
+  background: radial-gradient(circle at 50% 50%, #c8962e, #8a651e) !important;
+  border-color: #f1c40f !important;
+  color: #1a1a1a !important;
+}
+
+.room-on-fire::after {
+  content: '';
+  @apply absolute inset-0 rounded-none;
+  background: radial-gradient(circle at 50% 50%, rgba(200, 150, 46, 0.3), transparent 70%);
+  z-index: -1;
+  animation: pulse-gold 1.5s infinite;
+}
+
+/* Hide number input spinners */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}

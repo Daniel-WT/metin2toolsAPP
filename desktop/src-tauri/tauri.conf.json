@@ -1,0 +1,70 @@
+{
+  "$schema": "https://schema.tauri.app/config/1",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "metin2tools",
+    "version": "5.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "all": false,
+      "shell": {
+        "all": false,
+        "open": true
+      },
+      "notification": {
+        "all": true
+      },
+      "dialog": {
+        "all": true
+      },
+      "fs": {
+        "readFile": true,
+        "writeFile": true,
+        "scope": ["**"]
+      },
+      "window": {
+        "all": true
+      },
+      "globalShortcut": { "all": true }
+    },
+    "windows": [
+      {
+        "title": "Metin2 Tools",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "center": true,
+        "decorations": true
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "bundle": {
+      "active": true,
+      "targets": ["nsis"],
+      "identifier": "com.posta.metin2tools",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ]
+    },
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": [
+        "https://github.com/Daniel-WT/metin2toolsAPP/releases/latest/download/latest.json"
+      ],
+      "pubkey": "PUNE_AICI_CONTINUTUL_FISIERULUI_.key.pub"
+    }
+  }
+}

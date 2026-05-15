@@ -1,0 +1,18 @@
+{
+  "name": "M2 Tools",
+  "short_name": "M2 Tools",
+  "description": "Metin2 Tools",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080910",
+  "theme_color": "#080910",
+  "icons": [
+    {
+      "src": "/img/m2-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

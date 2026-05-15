@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+desktop/node_modules/
+
+# Rust build
+desktop/src-tauri/target/
+
+# Frontend build
+desktop/dist/
+web/dist/
+
+# Tauri
+desktop/src-tauri/WixTools/
+.wrangler/
+web/.wrangler/
+
+# Env
+.env
+.env.local
+*.env
+
+# OS
+.DS_Store
+Thumbs.db
