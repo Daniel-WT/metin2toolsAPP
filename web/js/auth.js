@@ -99,15 +99,16 @@ window._initAuth = function() {
       window.dispatchEvent(new CustomEvent('m2-profile-updated'));
 
       // 2.5 Check if account is pending approval
+      const pendingScreen = document.getElementById('account-pending-screen');
       const isSA = window.currentUserProfile.isSuperAdmin;
       if (data.status === 'pending' && !isSA) {
         authGate.style.display = 'none';
         document.getElementById('team-gate').style.display = 'none';
         document.getElementById('app-root').style.display = 'none';
-        document.getElementById('account-pending-screen').style.display = 'flex';
+        if (pendingScreen) pendingScreen.style.display = 'flex';
         return;
       }
-      document.getElementById('account-pending-screen').style.display = 'none';
+      if (pendingScreen) pendingScreen.style.display = 'none';
 
       const teamId = window.currentUserProfile.currentTeamId || window.currentUserProfile.teamId;
 
