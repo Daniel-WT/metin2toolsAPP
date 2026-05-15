@@ -61,7 +61,6 @@ interface SpawnContextType {
   confirmAlert: (chKey: string) => void;
   isHistoryOpen: boolean;
   setIsHistoryOpen: (val: boolean) => void;
-  typeHistory: any[];
   serverTimeOffset: number;
   logActivity: (action: string) => void;
   playSpawnAlarm: (type: '30s' | '2min') => void;
@@ -572,7 +571,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let sefCount = 0;
       let genCount = 0;
       
-      Object.entries(spawnData.rooms).forEach(([rid, chs]) => {
+      Object.entries(spawnData.rooms || {}).forEach(([rid, chs]) => {
         if (!convertedRooms[rid]) convertedRooms[rid] = [];
         Object.entries(chs).forEach(([chKey, entry]: [string, any]) => {
           if (entry.type === 'sef') sefCount++;

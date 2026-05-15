@@ -282,7 +282,7 @@ export default function SkinReminder() {
             onClick={() => {
               localStorage.removeItem('m2_skin_confirmed');
               console.log('[SkinAlert] Alerte confirmate resetate. Reîncarcă pagina pentru efect imediat.');
-              showToast('Alerte resetate. Vei vedea din nou alertele active.', 'success');
+              showToast('Alerte resetate. Vei vedea din nou alertele active.');
             }}
             className="px-4 py-2.5 bg-white/[0.03] border border-white/5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-white hover:bg-white/[0.06] transition-all"
             title="Șterge alertele confirmate din localStorage — util dacă nu apare modalul de expirare"
@@ -296,7 +296,7 @@ export default function SkinReminder() {
       </div>
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         <button onClick={() => setActiveFilter('all')} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase border", activeFilter === 'all' ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/5 text-slate-500")}>Toate</button>
-        {(SR_CATS as Category[]).map(cat => (
+        {(SR_CATS as unknown as Category[]).map(cat => (
           <button key={cat} onClick={() => setActiveFilter(cat)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase border flex items-center gap-2", activeFilter === cat ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/5 text-slate-500")}>
             <img src={CAT_META[cat].icon} alt="" className="w-4 h-4 object-contain opacity-50" /> {CAT_META[cat].label}
           </button>

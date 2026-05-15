@@ -17,16 +17,7 @@ interface UserProfile {
   teamId?: string | null;
   role?: string;
   isSuperAdmin?: boolean;
-  permissions?: { serverStatus?: boolean; adminPanel?: boolean; [key: string]: boolean | undefined };
-  permissions?: {
-    spawn?: boolean;
-    skin?: boolean;
-    inventory?: boolean;
-    status?: boolean;
-    alerte?: boolean;
-    transfers?: boolean;
-    checklist?: boolean;
-  };
+  permissions?: { serverStatus?: boolean; adminPanel?: boolean; spawn?: boolean; skin?: boolean; inventory?: boolean; status?: boolean; alerte?: boolean; transfers?: boolean; checklist?: boolean; [key: string]: boolean | undefined };
 }
 
 interface AuthContextType {
@@ -121,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user?.uid || !user?.teamId) return;
     
-    const { ref: dbRef, onValue } = import('firebase/database');
+    // dynamic import resolved inside setupMemberSync below
     let unsub: any = null;
 
     const setupMemberSync = async () => {
@@ -149,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Real-time Presence with Custom Name
   useEffect(() => {
     if (!user || !user.teamId) return;
-    const { ref: dbRef, set: dbSet, onDisconnect } = import('firebase/database');
+    // dynamic import resolved inside setupPresence below
     
     let presenceCleanup: any = null;
 

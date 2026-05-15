@@ -8,7 +8,7 @@ import { RoomIndicator } from './RoomIndicator';
 import { appWindow } from '@tauri-apps/api/window';
 
 export function MapView() {
-  const { spawnData, activeCH, setActiveCH, setMapDot, updateSpawnTime, setNotFound, clearCH } = useSpawn();
+  const { spawnData, activeCH, setActiveCH, setMapDot, updateSpawnTime, setNotFound, clearCH, removePin } = useSpawn();
   const mapRef = useRef<HTMLImageElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<{x: number, y: number, roomId: string, roomLabel: string, type: 'sef' | 'gen'} | null>(null);

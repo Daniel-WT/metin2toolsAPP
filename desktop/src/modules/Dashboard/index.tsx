@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/firebase';
 import { ref, onValue, query, limitToLast } from 'firebase/database';
 import { cn } from '../../lib/utils';
+// @ts-ignore
 import { APP_VERSION } from '../../../js/firebase-layer';
 
 interface ChangelogItem {
@@ -421,6 +422,8 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
   const [totalMembers, setTotalMembers] = useState(0);
   const [inviteCode, setInviteCode] = useState('');
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [newName, setNewName] = useState('');
 
   const isLeader = user?.role === 'Leader' || user?.isSuperAdmin;
 

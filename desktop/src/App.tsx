@@ -292,12 +292,11 @@ function AppContent() {
     <div className="flex flex-col h-screen bg-bg-primary overflow-hidden">
       <TitleBar />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
           isCompact={isCompact}
           setIsCompact={setIsCompact}
-          forceMemberView={viewAsMember}
         />
         
         <main className={cn(

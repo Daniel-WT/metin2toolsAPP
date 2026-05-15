@@ -414,7 +414,7 @@ export default function Pets() {
       </div>
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         <button onClick={() => setActiveFilter('all')} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase border", activeFilter === 'all' ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/5 text-slate-500")}>Toate</button>
-        {(IS_CATS as Category[]).map(cat => (
+        {(IS_CATS as unknown as Category[]).map(cat => (
           <button key={cat} onClick={() => setActiveFilter(cat)} className={cn("px-4 py-2 rounded-xl text-[10px] font-black uppercase border flex items-center gap-2", activeFilter === cat ? "bg-white/10 border-white/20 text-white" : "bg-white/5 border-white/5 text-slate-500")}>
             <img src={CAT_META[cat].icon} alt="" className="w-4 h-4 object-contain opacity-50" /> {CAT_META[cat].label}
           </button>

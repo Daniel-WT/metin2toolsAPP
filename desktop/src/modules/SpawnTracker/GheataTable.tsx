@@ -44,7 +44,7 @@ export function GheataTable() {
       const rooms = entry.rooms || {};
       Object.entries(rooms).forEach(([rid, chs]) => {
         if (rid === '_nf') return;
-        Object.values(chs).forEach((e: any) => {
+        Object.values(chs as any).forEach((e: any) => {
           if (e.type === 'notfound') return;
           if (!s[rid]) s[rid] = { sef: 0, gen: 0, total: 0 };
           s[rid].total++;
