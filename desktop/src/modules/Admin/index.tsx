@@ -161,7 +161,7 @@ export default function AdminPanel() {
       const data = snapshot.val();
       setBannedUids(data ? Object.keys(data) : []);
       setLoading(false);
-    });
+    }, () => setLoading(false)); // permission denied → still stop loading
 
     return () => {
       unsubRequests();

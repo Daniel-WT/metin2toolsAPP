@@ -2859,6 +2859,7 @@ document.getElementById('btnSpawnDublu').addEventListener('click', function() { 
 var SPAWN_HISTORY_KEY = 'metin2_spawn_history_v1';
 var SPAWN_HISTORY_MAX = 100;
 var _spawnHistoryCache = null; // in-memory cache, synced from Firebase
+var _lastHistorySave = 0; // timestamp of last local save — blocks Firebase listener from reverting
 
 function _loadSpawnHistory() {
   if (_spawnHistoryCache) return _spawnHistoryCache;
@@ -2868,6 +2869,7 @@ function _loadSpawnHistory() {
 
 function _saveSpawnHistory(history) {
   _spawnHistoryCache = history;
+  _lastHistorySave = Date.now();
   try { localStorage.setItem(SPAWN_HISTORY_KEY, JSON.stringify(history)); } catch(e) {}
   // Sync to Firebase so all users see the same history
   if (typeof db !== 'undefined' && db) {

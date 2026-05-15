@@ -159,6 +159,8 @@ function initFirebase(config) {
       db.ref(`teams/${teamId}/spawn/history`).on('value', snap => {
         const val = snap.val();
         if (!val) return;
+        // If we just saved locally, skip for 3s to prevent Firebase from reverting delete/restore
+        if (typeof _lastHistorySave !== 'undefined' && Date.now() - _lastHistorySave < 3000) return;
         // Normalize: Firebase stores as object (array or push-keyed), convert to sorted array
         var arr = Array.isArray(val) ? val : Object.values(val).filter(Boolean);
         arr.sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
