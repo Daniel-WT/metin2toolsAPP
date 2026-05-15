@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { open } from '@tauri-apps/api/dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/api/fs';
 import { invoke } from '@tauri-apps/api/tauri';
-import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X } from 'lucide-react';
+import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X, Layers } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { register, unregister } from '@tauri-apps/api/globalShortcut';
 
@@ -51,6 +51,8 @@ export default function Tweaks() {
   const [cfgPath, setCfgPath]               = useState<string | null>(null);
   const [currentW, setCurrentW]             = useState<number | null>(null);
   const [currentH, setCurrentH]             = useState<number | null>(null);
+  const [graphicsMode, setGraphicsMode]     = useState<'optimized' | 'normal' | 'custom' | null>(null);
+  const [applyingGfx, setApplyingGfx]       = useState(false);
   const [customW, setCustomW]               = useState('');
   const [customH, setCustomH]               = useState('');
   const [toast, setToast]                   = useState<{ msg: string; ok: boolean } | null>(null);
@@ -230,6 +232,16 @@ export default function Tweaks() {
       setCfgPath(path);
       setCurrentW(parseInt(wMatch[1]));
       setCurrentH(parseInt(hMatch[1]));
+      const eMatch  = content.match(/EFFECT_LEVEL\s+(\d+)/);
+      const psMatch = content.match(/PRIVATE_SHOP_LEVEL\s+(\d+)/);
+      const diMatch = content.match(/DROP_ITEM_LEVEL\s+(\d+)/);
+      const eVal  = eMatch  ? parseInt(eMatch[1])  : null;
+      const psVal = psMatch ? parseInt(psMatch[1]) : null;
+      const diVal = diMatch ? parseInt(diMatch[1]) : null;
+      if (eVal === 4 && psVal === 4 && diVal === 4) setGraphicsMode('optimized');
+      else if (eVal === 0 && psVal === 0 && diVal === 0) setGraphicsMode('normal');
+      else if (eVal !== null) setGraphicsMode('custom');
+      else setGraphicsMode(null);
     } catch (e) {
       console.error('[Tweaks] Read error:', e);
       showToast('Nu s-a putut citi fisierul.', false);
@@ -255,6 +267,26 @@ export default function Tweaks() {
       showToast('Eroare la scrierea fisierului.', false);
     } finally {
       setApplying(null);
+    }
+  }
+
+  async function applyGraphicsMode(optimized: boolean) {
+    if (!cfgPath) { showToast('Selecteaza mai intai metin2.cfg.', false); return; }
+    setApplyingGfx(true);
+    try {
+      const content = await readTextFile(cfgPath);
+      const val = optimized ? 4 : 0;
+      const updated = content
+        .replace(/(EFFECT_LEVEL\s+)\d+/, `$1${val}`)
+        .replace(/(PRIVATE_SHOP_LEVEL\s+)\d+/, `$1${val}`)
+        .replace(/(DROP_ITEM_LEVEL\s+)\d+/, `$1${val}`);
+      await writeTextFile(cfgPath, updated);
+      setGraphicsMode(optimized ? 'optimized' : 'normal');
+      showToast(optimized ? 'Mod Optimizat aplicat.' : 'Mod Normal aplicat.');
+    } catch {
+      showToast('Eroare la scrierea fisierului.', false);
+    } finally {
+      setApplyingGfx(false);
     }
   }
 
@@ -725,6 +757,58 @@ export default function Tweaks() {
             Aplica
           </button>
         </div>
+      </div>
+
+      {/* ── Optimizare Grafica ──────────────────────────────────── */}
+      <div className="card space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-accent-gold/10 border border-accent-gold/20">
+            <Layers className="w-5 h-5 text-accent-gold" />
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-100 font-display">Optimizare Grafica</h3>
+            <p className="text-slate-500 text-xs">Ascunde efecte, magazine private si drop items pentru performanta maxima</p>
+          </div>
+        </div>
+
+        <div className={cn('grid grid-cols-2 gap-3 transition-opacity', !cfgPath && 'opacity-30 pointer-events-none')}>
+          <button
+            onClick={() => applyGraphicsMode(false)}
+            disabled={applyingGfx || graphicsMode === 'normal'}
+            className={cn(
+              'flex flex-col items-center gap-2 py-5 rounded-xl border transition-all font-display',
+              graphicsMode === 'normal'
+                ? 'bg-accent-gold/10 border-accent-gold/40 text-accent-gold cursor-default'
+                : 'bg-bg-secondary border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-100 hover:bg-white/[0.02]',
+              applyingGfx && 'opacity-50'
+            )}
+          >
+            <span className="text-base font-black uppercase tracking-wider">Normal</span>
+            <span className="text-[10px] font-bold text-current opacity-60">Efecte + Shop + Drop vizibile</span>
+          </button>
+
+          <button
+            onClick={() => applyGraphicsMode(true)}
+            disabled={applyingGfx || graphicsMode === 'optimized'}
+            className={cn(
+              'flex flex-col items-center gap-2 py-5 rounded-xl border transition-all font-display',
+              graphicsMode === 'optimized'
+                ? 'bg-accent-gold/10 border-accent-gold/40 text-accent-gold cursor-default'
+                : 'bg-bg-secondary border-white/5 text-slate-400 hover:border-white/10 hover:text-slate-100 hover:bg-white/[0.02]',
+              applyingGfx && 'opacity-50'
+            )}
+          >
+            <span className="text-base font-black uppercase tracking-wider">Optimizat</span>
+            <span className="text-[10px] font-bold text-current opacity-60">Efecte + Shop + Drop ascunse</span>
+          </button>
+        </div>
+
+        {graphicsMode === 'custom' && (
+          <p className="text-[11px] text-slate-600 font-medium">Valori personalizate detectate in cfg. Alege un mod pentru a aplica.</p>
+        )}
+        {!cfgPath && (
+          <p className="text-[11px] text-slate-600 font-medium">Selecteaza metin2.cfg din sectiunea de mai sus.</p>
+        )}
       </div>
 
       {/* ── Window Title Changer ─────────────────────────────────── */}

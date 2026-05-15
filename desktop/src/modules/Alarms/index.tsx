@@ -888,7 +888,7 @@ function RepeatTimerSection() {
   function addTimer() {
     const total = dH * 3600 + dM * 60 + dS;
     if (!name.trim() || total <= 0) return;
-    const updated = [...timers, { id: `rt_${Date.now()}`, name: name.trim(), totalSeconds: total, startedAt: Date.now() }];
+    const updated = [...timers, { id: `rt-${Date.now()}`, name: name.trim(), totalSeconds: total, startedAt: Date.now() }];
     setTimers(updated); saveRepeatTimers(updated);
     setName(''); setDH(0); setDM(0); setDS(30); setShowForm(false);
   }
