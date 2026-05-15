@@ -98,6 +98,17 @@ window._initAuth = function() {
 
       window.dispatchEvent(new CustomEvent('m2-profile-updated'));
 
+      // 2.5 Check if account is pending approval
+      const isSA = window.currentUserProfile.isSuperAdmin;
+      if (data.status === 'pending' && !isSA) {
+        authGate.style.display = 'none';
+        document.getElementById('team-gate').style.display = 'none';
+        document.getElementById('app-root').style.display = 'none';
+        document.getElementById('account-pending-screen').style.display = 'flex';
+        return;
+      }
+      document.getElementById('account-pending-screen').style.display = 'none';
+
       const teamId = window.currentUserProfile.currentTeamId || window.currentUserProfile.teamId;
 
       // 3. Redirection Logic
@@ -179,7 +190,14 @@ window._initAuth = function() {
       if (isRegisterMode) {
         if (pass.length < 6) return showError("Parola prea scurta (min 6 char).");
         firebase.auth().createUserWithEmailAndPassword(email, pass)
-          .then(user => console.log("Register success:", user))
+          .then(async (result) => {
+            const uid = result.user.uid;
+            const isSA = result.user.email === 'postavarudaniel@gmail.com';
+            if (!isSA) {
+              await firebase.database().ref(`users/${uid}`).update({ uid, email, status: 'pending' });
+              await firebase.database().ref(`user_requests/${uid}`).set({ uid, email, status: 'pending', timestamp: firebase.database.ServerValue.TIMESTAMP });
+            }
+          })
           .catch(err => {
             console.error("Register error:", err);
             showError("Eroare: " + err.message);
