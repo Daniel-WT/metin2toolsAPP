@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "metin2tools",
-    "version": "1.1.4"
+    "version": "1.1.5"
   },
   "tauri": {
     "allowlist": {
@@ -64,7 +64,7 @@
       "endpoints": [
         "https://github.com/Daniel-WT/metin2toolsAPP/releases/latest/download/latest.json"
       ],
-      "pubkey": "untrusted comment: minisign public key: 965F28F621598ED4\nRWTUjlkh9ihflrYs04JHazvHr6ZF6zdekLiA8Fd7Zd0Qa8kEh+KqeO56\n"
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk2NUYyOEY2MjE1OThFRDQKUldUVWpsa2g5aWhmbHJZczA0SkhhenZIcjZaRjZ6ZGVrTGlBOEZkN1pkMFFhOGtFaCtLcWVPNTYK"
     }
   }
 }

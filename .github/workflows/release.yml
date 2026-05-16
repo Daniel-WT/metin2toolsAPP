@@ -34,18 +34,11 @@ jobs:
         run: npm install
 
       - name: Build Tauri app
-        shell: pwsh
         working-directory: desktop
         env:
-          RAW_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-        run: |
-          $b64 = $env:RAW_KEY -replace '\s+', ''
-          $raw = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64))
-          $keyFile = "$env:RUNNER_TEMP\tauri.key"
-          [System.IO.File]::WriteAllText($keyFile, $raw, [System.Text.Encoding]::ASCII)
-          $env:TAURI_PRIVATE_KEY = $keyFile
-          $env:TAURI_KEY_PASSWORD = ""
-          npm run tauri build
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ""
+        run: npm run tauri build
 
       - name: Create GitHub Release
         shell: pwsh
