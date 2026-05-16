@@ -512,7 +512,7 @@ function AddEditModal({ isOpen, onClose, item, teamId, logActivity, catGroup }: 
               {(modalCats as readonly string[]).map(cat => (
                 <button
                   key={cat} type="button"
-                  onClick={() => setF({ ...f, category: cat })}
+                  onClick={() => setF({ ...f, category: cat as Category })}
                   className={cn(
                     "relative flex flex-col items-center gap-2 py-3 px-2 rounded-xl border transition-all duration-200 group/cat",
                     f.category === cat
