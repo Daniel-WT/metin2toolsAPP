@@ -16,6 +16,20 @@ interface ChangelogItem {
 
 const CHANGELOG: ChangelogItem[] = [
   {
+    version: 'v1.1.7',
+    date: '17 May 2026',
+    changes: [
+      'Pop-out Gheata: pozitia si dimensiunea ferestrei sunt retinute la redeschidere',
+      'Pop-out Harta: pozitia si dimensiunea ferestrei sunt retinute la redeschidere',
+      'Modal notare Gheata: centrat si compact in pop-out mic, nu mai iese din fereastra',
+      'Rata Gasire Boss: acum arata media bossi gasiti per slot de canal (6/6 = 100%)',
+      'Indicator Going: badge mai vizibil cu glow si culoarea exacta a jucatorului',
+      'Sound Engine Web: eliminat AudioContext singleton — nu mai exista pop/click la 30s',
+      'Volum 0 Web: playback-ul nu mai porneste AudioContext cand volumul e pe 0',
+    ],
+    type: 'feat'
+  },
+  {
     version: 'v1.0.0',
     date: '15 May 2026',
     changes: [
@@ -67,19 +81,22 @@ const CHANGELOG: ChangelogItem[] = [
   }
 ];
 
-function ChangelogCard({ item, isDefaultOpen }: { item: ChangelogItem, isDefaultOpen: boolean }) {
-  const [isExpanded, setIsExpanded] = useState(isDefaultOpen);
+const CHANGES_PREVIEW = 4;
+
+function ChangelogCard({ item, onShowMore }: { item: ChangelogItem, onShowMore?: () => void }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const hidden = item.changes.length - CHANGES_PREVIEW;
 
   return (
     <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.01] mb-2">
-      <button 
+      <button
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full p-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor]",
-            item.type === 'feat' ? 'text-accent-gold bg-accent-gold' : 
+            item.type === 'feat' ? 'text-accent-gold bg-accent-gold' :
             item.type === 'fix' ? 'text-blue-400 bg-blue-400' : 'text-purple-400 bg-purple-400'
           )} />
           <span className="text-xs font-black text-white uppercase tracking-widest">{item.version}</span>
@@ -89,19 +106,55 @@ function ChangelogCard({ item, isDefaultOpen }: { item: ChangelogItem, isDefault
           <ChevronRight className={cn("w-3 h-3 text-slate-600 transition-transform duration-300", isExpanded && "rotate-90")} />
         </div>
       </button>
-      
+
       {isExpanded && (
         <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-300">
           <ul className="space-y-2 pt-2 border-t border-white/5">
-            {item.changes.map((change, j) => (
+            {item.changes.slice(0, CHANGES_PREVIEW).map((change, j) => (
               <li key={j} className="flex items-start gap-2 text-[11px] text-slate-400 leading-relaxed italic">
                 <ChevronRight className="w-3 h-3 text-accent-gold/40 shrink-0 mt-0.5" />
                 {change}
               </li>
             ))}
           </ul>
+          {hidden > 0 && onShowMore && (
+            <button
+              onClick={e => { e.stopPropagation(); onShowMore(); }}
+              className="mt-3 w-full text-center text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-accent-gold transition-colors"
+            >
+              + încă {hidden} noutăți
+            </button>
+          )}
         </div>
       )}
+    </div>
+  );
+}
+
+function ChangelogModalCard({ item }: { item: ChangelogItem }) {
+  return (
+    <div className="border border-white/5 rounded-2xl overflow-hidden bg-white/[0.01]">
+      <div className="p-4 flex items-center justify-between border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor]",
+            item.type === 'feat' ? 'text-accent-gold bg-accent-gold' :
+            item.type === 'fix' ? 'text-blue-400 bg-blue-400' : 'text-purple-400 bg-purple-400'
+          )} />
+          <span className="text-xs font-black text-white uppercase tracking-widest">{item.version}</span>
+        </div>
+        <span className="text-[10px] text-slate-600 font-bold">{item.date}</span>
+      </div>
+      <div className="px-4 py-3">
+        <ul className="space-y-2">
+          {item.changes.map((change, j) => (
+            <li key={j} className="flex items-start gap-2 text-[11px] text-slate-400 leading-relaxed italic">
+              <ChevronRight className="w-3 h-3 text-accent-gold/40 shrink-0 mt-0.5" />
+              {change}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
@@ -133,13 +186,13 @@ function ChangelogModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => v
         </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-4 scrollbar-hide">
-          {CHANGELOG.map((item, i) => (
-            <ChangelogCard key={item.version} item={item} isDefaultOpen={i === 0} />
+          {CHANGELOG.map(item => (
+            <ChangelogModalCard key={item.version} item={item} />
           ))}
         </div>
 
         <div className="p-6 border-t border-white/5 bg-white/[0.01] text-center">
-          <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Version Tracking System {APP_VERSION}</p>
+          <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Version Tracking System</p>
         </div>
       </div>
     </div>
@@ -208,83 +261,120 @@ function ActivityModal({ isOpen, onClose, activity }: { isOpen: boolean, onClose
   );
 }
 
+const SKIN_CAT_META: Record<string, { label: string; color: string; imgSrc: (item: any) => string }> = {
+  'skin-arma': {
+    label: 'Skin Armă', color: '#60a5fa',
+    imgSrc: () => '/icons/arma.png',
+  },
+  'costum': {
+    label: 'Costum', color: '#a78bfa',
+    imgSrc: (item) => item.gender === 'F' ? '/icons/costum_f.png' : '/icons/costum_m.png',
+  },
+  'frizura': {
+    label: 'Frizură', color: '#34d399',
+    imgSrc: (item) => item.gender === 'F' ? '/icons/frizura_f.png' : '/icons/frizura_m.png',
+  },
+};
+
 function SkinsExpiryModal({ isOpen, onClose, skins }: { isOpen: boolean, onClose: () => void, skins: any[] }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-bg-primary/80 backdrop-blur-md" onClick={onClose} />
-      
-      <div className="relative w-full max-w-2xl max-h-[80vh] bg-[#0c0c0e] border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-amber-400/10 flex items-center justify-center border border-amber-400/20">
-              <Clock className="w-5 h-5 text-amber-400" />
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+
+      <div className="relative w-full max-w-lg max-h-[85vh] bg-[#0c0c0e] border border-white/[0.07] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+
+        {/* Header */}
+        <div className="px-6 py-5 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+              <Clock className="w-4 h-4 text-amber-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white font-display uppercase tracking-tight">Toate Expirările</h2>
-              <p className="text-xs text-slate-500 uppercase tracking-widest font-black">Cronologie Skinuri & Costume</p>
+              <h2 className="text-[15px] font-black text-white tracking-tight">Toate Expirările</h2>
+              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-0.5">{skins.length} iteme monitorizate</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all"
-          >
-            <CloseIcon className="w-5 h-5" />
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-slate-500 hover:text-white transition-all">
+            <CloseIcon className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-4 scrollbar-hide">
+        {/* Divider */}
+        <div className="h-px bg-white/[0.05] mx-6" />
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2 scrollbar-hide">
           {skins.map((item, i) => {
-            const ms = item.expiresAt - Date.now();
+            const now = Date.now();
+            const ms = item.expiresAt - now;
+            const isUrgent = ms < 86400000 && ms > 0;
+            const isExpired = ms <= 0;
             const d = Math.floor(ms / 86400000);
             const h = Math.floor((ms % 86400000) / 3600000);
             const m = Math.floor((ms % 3600000) / 60000);
-            const timeStr = d > 0 ? `${d}z ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+            const timeStr = isExpired ? 'EXPIRAT' : d > 0 ? `${d}z ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+            const pct = item.totalDuration > 0 ? Math.max(0, Math.min(100, (ms / item.totalDuration) * 100)) : 0;
+            const meta = SKIN_CAT_META[item.category] ?? SKIN_CAT_META['costum'];
+            const accentColor = isExpired ? '#ef4444' : isUrgent ? '#f97316' : meta.color;
 
             return (
-              <div 
-                key={item.id} 
-                className="flex items-center gap-6 p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:bg-white/[0.04] transition-all group animate-in slide-in-from-bottom-2 duration-300"
-                style={{ animationDelay: `${i * 50}ms` }}
+              <div
+                key={item.id}
+                className="group flex items-center gap-4 p-3 rounded-2xl border border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.08] transition-all duration-200"
+                style={{ animationDelay: `${i * 30}ms` }}
               >
-                <div className={cn(
-                  "shrink-0 bg-[#151518] rounded-2xl border border-white/5 flex items-center justify-center p-2 relative transition-all duration-500",
-                  item.category === 'frizura' ? "w-14 h-14" : "w-14 h-24"
-                )}>
-                  <img 
-                    src={item.category === 'skin-arma' ? '/icons/arma.png' : item.category === 'costum' ? (item.gender === 'F' ? '/icons/costum_f.png' : '/icons/costum_m.png') : (item.gender === 'F' ? '/icons/frizura_f.png' : '/icons/frizura_m.png')} 
-                    alt="" 
-                    className="w-full h-full object-contain"
+                {/* Icon */}
+                <div className="shrink-0 relative">
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center border border-white/[0.06] overflow-hidden"
+                    style={{ background: `${accentColor}10` }}
+                  >
+                    <img src={meta.imgSrc(item)} alt="" className="w-10 h-10 object-contain drop-shadow-lg" />
+                  </div>
+                  <div
+                    className={cn('absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#0c0c0e]', isExpired ? 'bg-red-500' : isUrgent ? 'bg-orange-400 animate-pulse' : 'bg-emerald-500')}
                   />
-                  <div className={cn(
-                    "absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-[#0c0c0e] z-10",
-                    ms < 86400000 ? "bg-red-500 animate-pulse" : "bg-emerald-500"
-                  )} />
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-sm font-black text-white uppercase truncate group-hover:text-amber-400 transition-colors">{item.name}</h4>
-                    <span className={cn(
-                      "text-xs font-black tabular-nums",
-                      ms < 86400000 ? "text-red-500" : "text-amber-400"
-                    )}>
+                {/* Content */}
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[12px] font-black text-white truncate uppercase tracking-tight">{item.name}</span>
+                      <span
+                        className="shrink-0 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md border"
+                        style={{ color: accentColor, borderColor: `${accentColor}30`, background: `${accentColor}10` }}
+                      >
+                        {meta.label}
+                      </span>
+                    </div>
+                    <span
+                      className={cn('text-[12px] font-black tabular-nums shrink-0', isExpired ? 'text-red-400' : isUrgent ? 'text-orange-400' : 'text-amber-400')}
+                    >
                       {timeStr}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">@{item.account}</span>
-                    <span className="text-[10px] font-black text-slate-600 italic">Expira pe {new Date(item.expiresAt).toLocaleDateString('ro-RO', { day: '2-digit', month: 'long' })}</span>
+
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-wider">@{item.account}</span>
+                    <span className="text-[9px] text-slate-700 font-bold">
+                      {new Date(item.expiresAt).toLocaleDateString('ro-RO', { day: '2-digit', month: 'short' })}
+                    </span>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="h-0.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-1000"
+                      style={{ width: `${pct}%`, background: accentColor, boxShadow: `0 0 6px ${accentColor}60` }}
+                    />
                   </div>
                 </div>
               </div>
             );
           })}
-        </div>
-
-        <div className="p-6 border-t border-white/5 bg-white/[0.01] text-center">
-          <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest">Monitorizare activă pentru {skins.length} iteme</p>
         </div>
       </div>
     </div>
@@ -293,106 +383,128 @@ function SkinsExpiryModal({ isOpen, onClose, skins }: { isOpen: boolean, onClose
 
 function SpawnStatsModal({ isOpen, onClose, stats }: { isOpen: boolean, onClose: () => void, stats: any }) {
   if (!isOpen) return null;
-  
-  const { globalSefPerc, globalGenPerc, globalSefCount, globalGenCount, globalRooms, spawnCount, globalTotalAttempts, totalSessions } = stats;
+
+  const { globalSefPerc, globalGenPerc, globalSefCount, globalGenCount, globalRooms, spawnCount, globalTotalAttempts, globalTotalSlots, totalSessions } = stats;
   const sortedRooms = Object.entries(globalRooms || {} as Record<string, number>)
     .sort((a: any, b: any) => b[1] - a[1])
     .slice(0, 5);
-
-  const findRate = globalTotalAttempts > 0 ? ((spawnCount / globalTotalAttempts) * 100).toFixed(1) : '0';
+  const findRate = globalTotalSlots > 0 ? ((globalTotalAttempts / globalTotalSlots) * 100).toFixed(1) : '0';
+  const maxRoomCount = sortedRooms.length > 0 ? (sortedRooms[0][1] as number) : 1;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-      <div className="absolute inset-0 bg-bg-primary/80 backdrop-blur-md" onClick={onClose} />
-      <div className="relative w-full max-w-xl bg-[#0c0c0e] border border-white/10 rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-400/10 flex items-center justify-center border border-emerald-400/20"><Activity className="w-5 h-5 text-emerald-400" /></div>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-[#0c0c0e] border border-white/[0.07] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+
+        {/* Header */}
+        <div className="px-6 py-5 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+              <Activity className="w-4 h-4 text-emerald-400" />
+            </div>
             <div>
-              <h2 className="text-xl font-bold text-white font-display uppercase tracking-tight">Analiză Globală Boss</h2>
-              <p className="text-xs text-slate-500 uppercase tracking-widest font-black">Probabilități Totale Gheață</p>
+              <h2 className="text-[15px] font-black text-white tracking-tight">Analiză Globală Boss</h2>
+              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-0.5">{totalSessions} spawn-uri · {globalTotalAttempts} intrări</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all"><CloseIcon className="w-5 h-5" /></button>
+          <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-slate-500 hover:text-white transition-all">
+            <CloseIcon className="w-4 h-4" />
+          </button>
         </div>
-        
-        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-6 text-center">
-              <div className="text-3xl font-black text-emerald-400 mb-1">{findRate}%</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Rată Găsire Globală</div>
+
+        <div className="h-px bg-white/[0.05] mx-6" />
+
+        <div className="p-6 space-y-5 overflow-y-auto scrollbar-hide">
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-1">
+              <div className="text-[28px] font-black text-emerald-400 leading-none tabular-nums">{findRate}%</div>
+              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Rată Găsire</div>
             </div>
-            <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-6 text-center">
-              <div className="text-3xl font-black text-white mb-1">{spawnCount}</div>
-              <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Total Bossi Găsiți</div>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-1">
+              <div className="text-[28px] font-black text-white leading-none tabular-nums">{spawnCount}</div>
+              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Bossi Găsiți</div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-end px-2">
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">Distribuție Tip Boss</h4>
-              <span className="text-[10px] font-bold text-slate-600 italic">{globalTotalAttempts} intrări / {totalSessions} spawn-uri</span>
-            </div>
-            <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-6 space-y-6">
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-black uppercase tracking-widest mb-1">
-                  <span className="text-emerald-400">Căpetenii</span>
-                  <span className="text-white">{globalSefPerc}% <span className="text-[10px] text-slate-500 font-bold ml-1 italic">({globalSefCount})</span></span>
-                </div>
-                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)] transition-all duration-1000" style={{ width: `${globalSefPerc}%` }} />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs font-black uppercase tracking-widest mb-1">
-                  <span className="text-blue-400">Generali</span>
-                  <span className="text-white">{globalGenPerc}% <span className="text-[10px] text-slate-500 font-bold ml-1 italic">({globalGenCount})</span></span>
-                </div>
-                <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)] transition-all duration-1000" style={{ width: `${globalGenPerc}%` }} />
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Distribution */}
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-4">
+            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Distribuție Tip Boss</p>
 
-          <div className="space-y-4">
-            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic px-2">Top 5 Camere Probabile</h4>
-            <div className="bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden">
-              {sortedRooms.length > 0 ? sortedRooms.map(([room, count], idx) => (
-                <div key={room} className={cn(
-                  "flex items-center justify-between p-4 transition-colors",
-                  idx !== sortedRooms.length - 1 && "border-b border-white/5",
-                  idx === 0 ? "bg-amber-400/5" : "hover:bg-white/[0.01]"
-                )}>
-                  <div className="flex items-center gap-4">
-                    <span className={cn(
-                      "w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black",
-                      idx === 0 ? "bg-amber-400 text-bg-primary" : "bg-white/5 text-slate-400"
-                    )}>{idx + 1}</span>
-                    <span className="text-xs font-black text-white uppercase tracking-widest">Camera {room}</span>
+            {[
+              { label: 'Căpetenii', pct: globalSefPerc, count: globalSefCount, color: '#10b981', glow: 'rgba(16,185,129,0.35)' },
+              { label: 'Generali',  pct: globalGenPerc,  count: globalGenCount,  color: '#60a5fa', glow: 'rgba(96,165,250,0.35)' },
+            ].map(row => (
+              <div key={row.label} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider" style={{ color: row.color }}>{row.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-black text-white tabular-nums">{row.pct}%</span>
+                    <span className="text-[9px] text-slate-600 font-bold tabular-nums">({row.count})</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-black text-white tabular-nums italic">
-                      {spawnCount > 0 ? ((count as number) / spawnCount * 100).toFixed(0) : '0'}%
-                      <span className="text-[9px] text-slate-500 font-bold ml-1 italic">({count as number})</span>
-                    </span>
-                    <div className="w-12 h-1 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className={cn("h-full", idx === 0 ? "bg-amber-400" : "bg-slate-600")} 
-                        style={{ width: `${((count as number) / (spawnCount || 1)) * 100}%` }} 
-                      />
+                </div>
+                <div className="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-1000"
+                    style={{ width: `${row.pct}%`, background: row.color, boxShadow: `0 0 8px ${row.glow}` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Top rooms */}
+          <div className="space-y-2">
+            <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest px-1">Top 5 Camere Probabile</p>
+
+            {sortedRooms.length === 0 ? (
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-center text-[11px] text-slate-600 italic">
+                Nu există suficiente date în istoric
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {sortedRooms.map(([room, count], idx) => {
+                  const pct = Math.round((count as number) / (spawnCount || 1) * 100);
+                  const barPct = Math.round((count as number) / maxRoomCount * 100);
+                  const isFirst = idx === 0;
+                  return (
+                    <div
+                      key={room}
+                      className={cn(
+                        'flex items-center gap-3 px-4 py-3 rounded-xl border transition-all',
+                        isFirst
+                          ? 'border-amber-400/20 bg-amber-400/[0.04]'
+                          : 'border-white/[0.04] bg-white/[0.02] hover:bg-white/[0.04]'
+                      )}
+                    >
+                      <span className={cn(
+                        'w-5 h-5 rounded-lg flex items-center justify-center text-[9px] font-black shrink-0',
+                        isFirst ? 'bg-amber-400 text-black' : 'bg-white/5 text-slate-500'
+                      )}>{idx + 1}</span>
+
+                      <span className={cn('text-[11px] font-black uppercase tracking-wider flex-1', isFirst ? 'text-amber-400' : 'text-slate-300')}>
+                        Camera {room}
+                      </span>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="w-16 h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{ width: `${barPct}%`, background: isFirst ? '#f59e0b' : '#475569' }}
+                          />
+                        </div>
+                        <span className={cn('text-[11px] font-black tabular-nums w-10 text-right', isFirst ? 'text-amber-400' : 'text-slate-400')}>
+                          {pct}%
+                        </span>
+                        <span className="text-[9px] text-slate-600 tabular-nums w-6">({count as number})</span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )) : (
-                <div className="p-8 text-center text-slate-600 text-xs italic">Nu există suficiente date în istoric</div>
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
-
-        <div className="p-6 border-t border-white/5 bg-white/[0.01] text-center">
-          <p className="text-[10px] text-slate-600 font-black uppercase tracking-widest italic">Calculat pe baza istoricului echipei</p>
         </div>
       </div>
     </div>
@@ -488,7 +600,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
         'CH6': { found: 0, total: 0, sef: 0, gen: 0, rooms: {} }
       };
 
-      let totalSef = 0, totalGen = 0, totalFoundEntries = 0;
+      let totalSef = 0, totalGen = 0, totalFoundEntries = 0, totalAllSlots = 0;
       const globalRooms: Record<string, number> = {};
 
       const processRooms = (rooms: any) => {
@@ -501,6 +613,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
           channelEntries.forEach(([chName, e]) => {
             if (chCounts[chName]) {
               chCounts[chName].total++;
+              totalAllSlots++;
               if (e.type === 'sef') {
                 chCounts[chName].found++;
                 chCounts[chName].sef++;
@@ -539,6 +652,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
           globalRooms,
           spawnCount: totalSef,
           globalTotalAttempts: totalFoundEntries,
+          globalTotalSlots: totalAllSlots,
           totalSessions
         }
       }));
@@ -738,8 +852,8 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
               </button>
             </div>
             <div className="p-4 space-y-2">
-              {CHANGELOG.slice(0, 3).map((item, i) => (
-                <ChangelogCard key={item.version} item={item} isDefaultOpen={i === 0} />
+              {CHANGELOG.slice(0, 3).map(item => (
+                <ChangelogCard key={item.version} item={item} onShowMore={() => setShowHistoryModal(true)} />
               ))}
             </div>
           </div>
@@ -829,7 +943,13 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
                   );
                 })}
                 {stats.skinsIn7Days.length > 4 && (
-                  <button className="w-full py-2 text-[9px] font-black text-slate-600 uppercase tracking-widest hover:text-slate-400 transition-colors">
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('m2_skin_7days_pending', '1');
+                      setActiveTab?.('skins');
+                    }}
+                    className="w-full py-2 text-[9px] font-black text-slate-600 uppercase tracking-widest hover:text-amber-400 transition-colors"
+                  >
                     + încă {stats.skinsIn7Days.length - 4} iteme
                   </button>
                 )}

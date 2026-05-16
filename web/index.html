@@ -213,6 +213,47 @@
 .main-tab--admin { color: #e05252 !important; opacity: 0.6; }
 .main-tab--admin.active { opacity: 1; border-color: #e05252 !important; background: rgba(224,82,82,0.1) !important; }
 .tab-page { display: none; padding-top: 16px; box-sizing: border-box; }
+/* ── Sticky Notes ──────────────────────────────────────────────────────── */
+.sn-page-header { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
+.sn-page-title { font-size:22px; font-weight:900; color:#fff; letter-spacing:-0.5px; }
+.sn-page-subtitle { font-size:12px; color:var(--text-muted); margin-top:3px; }
+.sn-header-right { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.sn-filter-bar { display:flex; align-items:center; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:10px; padding:3px; gap:2px; }
+.sn-filter { padding:5px 12px; border-radius:7px; border:none; background:transparent; color:var(--text-muted); font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:0.06em; cursor:pointer; transition:all 0.15s; font-family:inherit; }
+.sn-filter.active { background:rgba(200,150,46,0.12); color:var(--gold); border:1px solid rgba(200,150,46,0.2); }
+.sn-filter:not(.active):hover { color:var(--text); }
+.sn-new-btn { display:flex; align-items:center; gap:6px; padding:7px 14px; background:rgba(200,150,46,0.1); border:1px solid rgba(200,150,46,0.2); border-radius:10px; color:var(--gold); font-size:12px; font-weight:900; cursor:pointer; transition:all 0.15s; font-family:inherit; }
+.sn-new-btn:hover { background:rgba(200,150,46,0.18); }
+.sn-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px; }
+.sn-card { position:relative; border:1px solid; border-radius:14px; overflow:hidden; display:flex; flex-direction:column; transition:transform 0.15s; }
+.sn-card:hover { transform:translateY(-2px); }
+.sn-accent-bar { height:3px; width:100%; flex-shrink:0; }
+.sn-pin-dot { position:absolute; top:12px; right:12px; width:7px; height:7px; border-radius:50%; }
+.sn-body { padding:12px 14px; display:flex; flex-direction:column; gap:8px; flex:1; }
+.sn-title { background:transparent; border:none; outline:none; color:#fff; font-weight:700; font-size:13px; width:100%; font-family:inherit; }
+.sn-title::placeholder { color:rgba(255,255,255,0.18); }
+.sn-title:disabled { cursor:default; opacity:1; }
+.sn-content { background:transparent; border:none; outline:none; color:rgba(255,255,255,0.6); font-size:12px; line-height:1.65; resize:none; width:100%; font-family:inherit; flex:1; }
+.sn-content::placeholder { color:rgba(255,255,255,0.12); }
+.sn-content:disabled { cursor:default; opacity:1; }
+.sn-footer { display:flex; align-items:center; justify-content:space-between; padding:8px 14px; border-top:1px solid; }
+.sn-footer-left { display:flex; align-items:center; gap:7px; min-width:0; }
+.sn-color-btn { width:13px; height:13px; border-radius:50%; border:2px solid rgba(255,255,255,0.2); cursor:pointer; transition:transform 0.12s; flex-shrink:0; }
+.sn-color-btn:hover { transform:scale(1.2); }
+.sn-author { font-size:9px; color:rgba(255,255,255,0.25); font-weight:700; text-transform:uppercase; letter-spacing:0.08em; max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sn-actions { display:flex; align-items:center; gap:1px; opacity:0; transition:opacity 0.15s; flex-shrink:0; }
+.sn-card:hover .sn-actions { opacity:1; }
+.sn-btn { width:22px; height:22px; display:flex; align-items:center; justify-content:center; border:none; background:transparent; color:rgba(255,255,255,0.3); cursor:pointer; border-radius:6px; transition:all 0.15s; }
+.sn-btn:hover { background:rgba(255,255,255,0.07); color:#fff; }
+.sn-btn-del:hover { background:rgba(224,82,82,0.12); color:#e05252; }
+.sn-btn-priv.is-shared { color:#34d399; }
+.sn-readonly { font-size:9px; color:rgba(255,255,255,0.2); font-weight:700; text-transform:uppercase; letter-spacing:0.08em; }
+.sn-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px; gap:10px; color:rgba(255,255,255,0.2); text-align:center; }
+.sn-empty p { font-size:13px; font-weight:700; }
+.sn-color-picker { background:#0d0d10; border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:8px; display:flex; gap:5px; box-shadow:0 8px 32px rgba(0,0,0,0.5); }
+.sn-cp-swatch { width:18px; height:18px; border-radius:50%; border:2px solid transparent; cursor:pointer; transition:transform 0.12s; }
+.sn-cp-swatch:hover { transform:scale(1.15); }
+.sn-cp-swatch.active { border-color:rgba(255,255,255,0.7); transform:scale(1.1); }
 </style>
 
 <div id="app-root" style="display:none;">
@@ -333,6 +374,7 @@
     <button class="main-tab" data-tab="server-status">Servere</button>
     <button class="main-tab" data-tab="transfers">Transferuri</button>
     <button class="main-tab" data-tab="checklist">Checklist</button>
+    <button class="main-tab" data-tab="sticky-notes">Notițe</button>
     <button class="main-tab" data-tab="team-management" id="tab-btn-team">Echipa</button>
     <button class="main-tab main-tab--admin" id="tab-btn-admin" data-tab="admin" style="display:none">Admin Panel</button>
   </div>
@@ -825,6 +867,26 @@
   </div><!-- /tab-checklist -->
 
 
+
+
+  <!-- TAB: Sticky Notes -->
+  <div class="tab-page" id="tab-sticky-notes" style="display:none">
+    <div class="sn-page-header">
+      <div>
+        <h2 class="sn-page-title">Notițe</h2>
+        <p class="sn-page-subtitle">Personale și pentru echipă</p>
+      </div>
+      <div class="sn-header-right">
+        <div class="sn-filter-bar">
+          <button class="sn-filter active" data-filter="all">Toate</button>
+          <button class="sn-filter" data-filter="mine">Ale mele</button>
+          <button class="sn-filter" data-filter="team">Echipă</button>
+        </div>
+        <button class="sn-new-btn" id="btnNewNote">+ Notă nouă</button>
+      </div>
+    </div>
+    <div class="sn-grid" id="snGrid"></div>
+  </div><!-- /tab-sticky-notes -->
 
 
   <!-- TAB: Admin Panel -->
@@ -1378,6 +1440,14 @@
   <div class="modal changelog-modal">
     <div class="modal-title">Noutati</div>
     <div class="changelog-list">
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v5.4.2</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Sound Engine: eliminat AudioContext singleton — nu mai exista pop/click la 30s inactivitate.</div>
+        <div class="changelog-item">Volum 0: playback-ul nu mai porneste AudioContext cand volumul e pe 0.</div>
+      </div>
       <div class="changelog-entry">
         <div class="changelog-meta">
           <span class="changelog-version">v5.0.0</span>
@@ -1991,6 +2061,7 @@
 <script src="js/notif-center.js"></script>
 <script src="js/secret.js"></script>
 <script src="js/checklist.js"></script>
+<script src="js/sticky-notes.js"></script>
 <script src="js/expiry-calendar.js"></script>
 <script src="js/team-gate.js"></script>
 <script src="js/app.js"></script>

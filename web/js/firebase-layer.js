@@ -1,5 +1,5 @@
 // ============ FIREBASE LAYER ============
-const APP_VERSION = 'v5.0.0';
+const APP_VERSION = 'v5.4.2';
 const FB_CONFIG_KEY = 'metin2_fb_config';
 window.db = null;
 let db = null; // keep local ref for compatibility if needed, but better use window.db
@@ -204,6 +204,15 @@ function initFirebase(config) {
           secretItems = val ? Object.values(val).filter(Boolean) : [];
           if (typeof renderSecretTab === 'function') renderSecretTab();
         }
+      });
+
+      // 5c. Sticky Notes (team shared notes)
+      db.ref('teams/' + teamId + '/stickyNotes').on('value', function(snap) {
+        var val = snap.val();
+        _snTeamNotes = val
+          ? Object.keys(val).map(function(id) { return Object.assign({}, val[id], { id: id, isPrivate: false }); })
+          : [];
+        if (typeof renderStickyNotes === 'function') renderStickyNotes();
       });
 
       // 6. Team webhook settings

@@ -6,6 +6,7 @@ import { useSpawn } from '../../contexts/SpawnContext';
 import { INITIAL_ROOMS, MAP_COLORS } from './constants';
 import { RoomIndicator } from './RoomIndicator';
 import { appWindow } from '@tauri-apps/api/window';
+import { useWindowMemory } from '../../lib/windowMemory';
 
 export function MapView() {
   const { spawnData, activeCH, setActiveCH, setMapDot, updateSpawnTime, setNotFound, clearCH, removePin } = useSpawn();
@@ -16,6 +17,7 @@ export function MapView() {
   const isPopout = window.location.search.includes('view=map');
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
   const [showOnFeedback, setShowOnFeedback] = useState(false);
+  useWindowMemory('map-popout');
 
   useEffect(() => {
     if (isPopout) {

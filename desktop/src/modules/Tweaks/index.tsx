@@ -118,9 +118,10 @@ export default function Tweaks() {
   const [closeAllBind, setCloseAllBind]           = useState<string | null>(() => localStorage.getItem(LS_CLOSEALL_BIND) || null);
   const [listeningCloseAll, setListeningCloseAll] = useState(false);
   const [closingAll, setClosingAll]               = useState(false);
-  const closeAllBindRef  = useRef<string | null>(null);
-  const tcpWhitelistRef  = useRef<Set<string>>(new Set());
-  const m2winsRef        = useRef<Metin2Win[]>([]);
+  const closeAllBindRef    = useRef<string | null>(null);
+  const tcpWhitelistRef    = useRef<Set<string>>(new Set());
+  const m2winsRef          = useRef<Metin2Win[]>([]);
+  const autoScanInProgress = useRef(false);
 
   // ── Drag state (pointer-based, same system as Inventory) ──────────────
   const dragIdRef    = useRef<string | null>(null);
@@ -238,6 +239,27 @@ export default function Tweaks() {
         }
       }
     };
+  }, []);
+
+  // Auto-scan Metin2 windows on mount and every 4s
+  useEffect(() => {
+    const doScan = async () => {
+      if (autoScanInProgress.current) return;
+      autoScanInProgress.current = true;
+      try {
+        const wins = await invoke<Metin2Win[]>('list_metin2_windows');
+        setM2wins(wins);
+        setWinTitles(prev => {
+          const next: Record<string, string> = {};
+          wins.forEach(w => { next[w.hwnd] = prev[w.hwnd] ?? w.title; });
+          return next;
+        });
+      } catch {}
+      autoScanInProgress.current = false;
+    };
+    doScan();
+    const inv = setInterval(doScan, 4000);
+    return () => clearInterval(inv);
   }, []);
 
   // Listen for key or mouse side button when binding

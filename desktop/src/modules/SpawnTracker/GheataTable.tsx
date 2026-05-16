@@ -4,6 +4,7 @@ import { appWindow } from '@tauri-apps/api/window';
 import { useSpawn } from '../../contexts/SpawnContext';
 import { cn } from '../../lib/utils';
 import { MAP_COLORS } from './constants';
+import { useWindowMemory } from '../../lib/windowMemory';
 
 export function GheataTable() {
   const { 
@@ -31,6 +32,7 @@ export function GheataTable() {
   const isPopout = window.location.search.includes('view=gheatatable');
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
   const [showOnFeedback, setShowOnFeedback] = useState(false);
+  useWindowMemory('gheatatable-popout');
 
   useEffect(() => {
     if (isPopout) {
@@ -158,7 +160,9 @@ export function GheataTable() {
               const type = entry?.type;
               const hasPin = !!(spawnData?.pins?.[`ch${ch}`]?.x);
 
+              const goingColor = entry?.goingColor || '#10b981';
               let chStyle = "border-l-4 border-transparent";
+              let chInlineStyle: React.CSSProperties | undefined;
               let rowBg = "hover:bg-white/[0.02]";
               let statusCellBg = "";
 
@@ -170,7 +174,8 @@ export function GheataTable() {
               } else if (isDead) {
                 chStyle = "border-l-4 border-red-500/50 bg-red-500/5";
               } else if (isGoing) {
-                chStyle = "border-l-4 border-emerald-500 bg-emerald-500/5";
+                chStyle = "border-l-4";
+                chInlineStyle = { borderLeftColor: goingColor, backgroundColor: `${goingColor}12` };
               } else if (type === 'gen') {
                 chStyle = "border-l-4 border-blue-500 bg-blue-500/5";
               } else if (type === 'sef') {
@@ -179,13 +184,14 @@ export function GheataTable() {
 
               return (
                 <tr key={ch} className={cn("border-b border-white/5 transition-all group", rowBg)}>
-                  <td 
+                  <td
                     className={cn(
                       isPopout ? "h-[14%]" : "py-2",
                       "font-black text-[10px] text-center select-none transition-all cursor-pointer pointer-events-auto",
                       chStyle,
                       isPopout && "text-[9px]"
                     )}
+                    style={chInlineStyle}
                     onClick={(e) => {
                       if (e.shiftKey) { toggleBeaten(ch); } 
                       else {
@@ -211,16 +217,18 @@ export function GheataTable() {
                       if (mainRoom) {
                         if (isDead) return <span className="text-[9px] font-black text-red-500">DEAD</span>;
                         if (isGoing) return (
-                          <span 
-                            className="text-[8px] font-black flex items-center justify-center gap-0.5 px-1 py-0.5 rounded border"
-                            style={{ 
-                              color: entry?.goingColor || '#10b981', 
-                              backgroundColor: `${entry?.goingColor || '#10b981'}15`,
-                              borderColor: `${entry?.goingColor || '#10b981'}30`
+                          <div
+                            className="flex items-center justify-center gap-1 px-2 py-1 rounded-md border mx-auto w-fit"
+                            style={{
+                              color: goingColor,
+                              backgroundColor: `${goingColor}22`,
+                              borderColor: `${goingColor}55`,
+                              boxShadow: `0 0 10px ${goingColor}30`,
                             }}
                           >
-                            <User className="w-2 h-2" /> {entry?.going}
-                          </span>
+                            <User className="w-3 h-3 flex-shrink-0" />
+                            <span className="text-[11px] font-black leading-none tracking-tight">{entry?.going}</span>
+                          </div>
                         );
                         if (type === 'gen') return <span className="text-[9px] font-black text-blue-400">GENERAL</span>;
                         return <span className="text-[9px] font-black text-emerald-500">SEF</span>;
@@ -312,60 +320,54 @@ export function GheataTable() {
 
       {/* Manual Notation Modal */}
       {notationCH !== null && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 pointer-events-auto">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setNotationCH(null)} />
-          <div className="relative w-full max-w-[280px] card border-white/10 p-6 shadow-2xl animate-in zoom-in-95">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Notare Manuală</span>
-                <span className="text-lg font-bold text-slate-100">Canal {notationCH}</span>
+        <div className="absolute inset-0 z-[200] flex items-center justify-center pointer-events-auto">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setNotationCH(null)} />
+          <div className={cn(
+            "relative w-full card border-white/10 shadow-2xl animate-in zoom-in-95 duration-150",
+            isPopout ? "p-3 rounded-xl mx-2" : "p-5 rounded-2xl mx-3"
+          )}>
+            <div className={cn("flex items-center justify-between", isPopout ? "mb-3" : "mb-4")}>
+              <div className="flex items-center gap-2">
+                <span className={cn("font-black text-slate-100", isPopout ? "text-[11px]" : "text-sm")}>
+                  Canal {notationCH}
+                </span>
+                <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Notare</span>
               </div>
-              <button onClick={() => setNotationCH(null)} className="text-slate-500 hover:text-white"><X className="w-4 h-4" /></button>
+              <button onClick={() => setNotationCH(null)} className="text-slate-500 hover:text-white p-0.5"><X className="w-3.5 h-3.5" /></button>
             </div>
-            
-            <div className="space-y-4">
-              {stats[editRoom.toUpperCase()] && (
-                <div className="flex items-center justify-between px-2 py-1 bg-white/5 rounded-lg border border-white/5">
-                  <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Sansa Spawn</span>
-                  <div className="flex gap-2">
-                    <span className="text-[10px] font-bold text-emerald-400">S: {stats[editRoom.toUpperCase()].sef}</span>
-                    <span className="text-[10px] font-bold text-blue-400">G: {stats[editRoom.toUpperCase()].gen}</span>
-                  </div>
-                </div>
-              )}
-              <div className="flex p-1 bg-slate-900 rounded-xl border border-white/5">
-                <button 
-                  onClick={() => setEditType('sef')} 
+
+            <div className={cn("space-y-2", isPopout ? "" : "space-y-3")}>
+              <div className="flex p-0.5 bg-slate-900 rounded-lg border border-white/5">
+                <button
+                  onClick={() => setEditType('sef')}
                   className={cn(
-                    "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                    "flex-1 rounded-md font-black uppercase tracking-widest transition-all",
+                    isPopout ? "py-1.5 text-[9px]" : "py-2 text-[10px]",
                     editType === 'sef' ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "text-slate-600"
                   )}
-                >
-                  Sef
-                </button>
-                <button 
-                  onClick={() => setEditType('gen')} 
+                >Sef</button>
+                <button
+                  onClick={() => setEditType('gen')}
                   className={cn(
-                    "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                    "flex-1 rounded-md font-black uppercase tracking-widest transition-all",
+                    isPopout ? "py-1.5 text-[9px]" : "py-2 text-[10px]",
                     editType === 'gen' ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "text-slate-600"
                   )}
-                >
-                  Gen
-                </button>
+                >Gen</button>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[9px] font-black text-slate-600 uppercase tracking-widest px-1">Număr Cameră</label>
-                <input 
-                  ref={roomInputRef} 
-                  type="text" 
-                  value={editRoom} 
-                  onChange={(e) => setEditRoom(e.target.value)} 
-                  onKeyDown={(e) => { if (e.key === 'Enter') confirmAdd(); if (e.key === 'Escape') setNotationCH(null); }} 
-                  placeholder="1-29 sau F" 
-                  className="w-full bg-slate-900 border border-white/5 rounded-xl px-4 py-3 text-center text-lg font-bold text-white outline-none focus:border-accent-gold/50 transition-all uppercase" 
-                />
-              </div>
+              <input
+                ref={roomInputRef}
+                type="text"
+                value={editRoom}
+                onChange={(e) => setEditRoom(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmAdd(); if (e.key === 'Escape') setNotationCH(null); }}
+                placeholder="1-29 SAU F"
+                className={cn(
+                  "w-full bg-slate-900 border border-white/5 rounded-lg text-center font-bold text-white outline-none focus:border-accent-gold/50 transition-all uppercase",
+                  isPopout ? "px-2 py-2 text-sm" : "px-4 py-3 text-lg"
+                )}
+              />
 
               {(() => {
                 const chNotations: string[] = [];
@@ -378,25 +380,26 @@ export function GheataTable() {
                 const isValid = editRoom && VALID_ROOMS.includes(roomUpper);
 
                 return (
-                  <div className="space-y-3">
+                  <>
                     {isLocked && (
-                      <p className="text-[10px] font-black text-red-500 uppercase tracking-widest text-center animate-pulse">
+                      <p className="text-[9px] font-black text-red-500 uppercase tracking-widest text-center animate-pulse">
                         Canal Blocat! Șterge notarea veche.
                       </p>
                     )}
-                    <button 
-                      onClick={confirmAdd} 
+                    <button
+                      onClick={confirmAdd}
                       disabled={!isValid || isLocked}
                       className={cn(
-                        "w-full py-3 font-black text-xs uppercase tracking-widest rounded-xl transition-all",
-                        isLocked 
-                          ? "bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5" 
+                        "w-full font-black text-[10px] uppercase tracking-widest rounded-lg transition-all",
+                        isPopout ? "py-2" : "py-2.5",
+                        isLocked
+                          ? "bg-slate-800 text-slate-600 cursor-not-allowed border border-white/5"
                           : "bg-accent-gold hover:bg-gold-light text-bg-primary"
                       )}
                     >
-                      {isLocked ? 'Notare Blocată' : 'Salvează Notarea'}
+                      {isLocked ? 'Blocat' : 'Salvează'}
                     </button>
-                  </div>
+                  </>
                 );
               })()}
             </div>

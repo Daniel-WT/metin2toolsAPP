@@ -8,6 +8,7 @@ interface SkinItem {
   id: string;
   name: string;
   account: string;
+  category?: string;
   expiresAt: number;
 }
 
@@ -38,7 +39,7 @@ export function SkinExpiryWidget() {
   }, []);
 
   const expiring = items
-    .filter(i => i.expiresAt && !isNaN(i.expiresAt) && i.expiresAt > now && i.expiresAt - now <= 24 * 3600000)
+    .filter(i => i.expiresAt && !isNaN(i.expiresAt) && i.category !== 'sase-sapte' && i.expiresAt > now && i.expiresAt - now <= 24 * 3600000)
     .sort((a, b) => a.expiresAt - b.expiresAt);
 
   if (expiring.length === 0) return null;

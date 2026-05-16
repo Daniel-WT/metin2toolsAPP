@@ -122,14 +122,63 @@ export default {
         const body = await request.json();
         const webhookUrl = body.webhookUrl || env.DISCORD_SERVER_WEBHOOK_URL || env.DISCORD_WEBHOOK_URL;
         if (!webhookUrl) return new Response('No webhook', { status: 500 });
-        const { server, channel, status } = body;
-        const isOnline = status === 'online';
-        const embed = {
-          title: isOnline ? '🟢 Server Online' : '🔴 Server Offline',
-          description: `**${server || 'Unknown'} ${channel || ''}** este acum **${isOnline ? 'ONLINE' : 'OFFLINE'}**`,
-          color: isOnline ? 0x4caf82 : 0xe05252,
-          timestamp: new Date().toISOString()
-        };
+        const { server, channel, status, type, detectedAt } = body;
+        const p = x => String(x).padStart(2, '0');
+        const timeStr = detectedAt || (() => {
+          const n = new Date();
+          return `${p(n.getUTCHours())}:${p(n.getUTCMinutes())}:${p(n.getUTCSeconds())}`;
+        })();
+        const serverLabel = server || 'Magyarorszag';
+
+        let embed;
+        if (type === 'monitor_started_manual') {
+          embed = {
+            color: 0x5865f2,
+            author: { name: '▶  Monitorizare Pornită' },
+            title: serverLabel,
+            description: `Monitorizarea a pornit **manual**\n\`${timeStr}\``,
+            footer: { text: 'Metin2 Tools • Server Monitor' },
+            timestamp: new Date().toISOString()
+          };
+        } else if (type === 'monitor_started_auto') {
+          embed = {
+            color: 0x5865f2,
+            author: { name: '▶  Monitorizare Pornită' },
+            title: serverLabel,
+            description: `Monitorizarea a pornit **automat**\n\`${timeStr}\``,
+            footer: { text: 'Metin2 Tools • Server Monitor' },
+            timestamp: new Date().toISOString()
+          };
+        } else if (type === 'monitor_started_scheduled') {
+          embed = {
+            color: 0x5865f2,
+            author: { name: '▶  Monitorizare Pornită' },
+            title: serverLabel,
+            description: `Monitorizarea a pornit **conform programului**\n\`${timeStr}\``,
+            footer: { text: 'Metin2 Tools • Server Monitor' },
+            timestamp: new Date().toISOString()
+          };
+        } else if (type === 'monitor_done') {
+          embed = {
+            color: 0x57f287,
+            author: { name: '✓  Monitorizare Completă' },
+            title: serverLabel,
+            description: `Toate serverele sunt **ONLINE**\n\`${timeStr}\``,
+            footer: { text: 'Metin2 Tools • Server Monitor' },
+            timestamp: new Date().toISOString()
+          };
+        } else {
+          const isOnline = status === 'online';
+          const serverName = `${serverLabel}${channel ? ` — ${channel}` : ''}`;
+          embed = {
+            color: isOnline ? 0x57f287 : 0xed4245,
+            author: { name: isOnline ? '●  Server Online' : '●  Server Offline' },
+            title: serverName,
+            description: `Status schimbat la **${isOnline ? 'ONLINE' : 'OFFLINE'}**\n\`${timeStr}\``,
+            footer: { text: 'Metin2 Tools • Server Monitor' },
+            timestamp: new Date().toISOString()
+          };
+        }
         await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

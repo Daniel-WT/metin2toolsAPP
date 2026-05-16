@@ -5,6 +5,7 @@ import { CHTable } from './CHTable';
 import { Info, RefreshCcw, Zap, ZapOff, Undo2, LayoutGrid, Clock, Volume2, Settings, X as CloseIcon, ExternalLink, Map as MapIcon, Bell } from 'lucide-react';
 import { WebviewWindow } from '@tauri-apps/api/window';
 import { cn } from '../../lib/utils';
+import { savedWindowOptions } from '../../lib/windowMemory';
 import { SpawnProvider, useSpawn } from '../../contexts/SpawnContext';
 import { SpawnHistoryModal } from './SpawnHistoryModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -93,17 +94,19 @@ function SpawnTrackerContent() {
                 <MapIcon className="w-4 h-4 text-accent-gold" />
                 <h3 className="text-sm font-bold text-slate-100 font-display">Hartă Spawn</h3>
               </div>
-              <button 
+              <button
                 onClick={() => {
+                  const geo = savedWindowOptions('map-popout');
                   new WebviewWindow('map-popout', {
                     url: 'index.html?view=map',
                     title: 'Hartă Spawn - Metin2 Tools',
-                    width: 600,
-                    height: 600,
                     resizable: true,
                     alwaysOnTop: true,
                     decorations: false,
-                    transparent: false
+                    transparent: false,
+                    width: geo.width ?? 600,
+                    height: geo.height ?? 600,
+                    ...(geo.x !== undefined ? { x: geo.x, y: geo.y, center: false } : { center: true }),
                   });
                 }}
                 className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-accent-gold transition-all"
@@ -130,16 +133,15 @@ function SpawnTrackerContent() {
                 </div>
                 <button 
                   onClick={() => {
-                    new WebviewWindow('timpspawn-popout', {
-                      url: 'index.html?view=timpspawn',
-                      title: 'Timp Spawn - Metin2 Tools',
-                      width: 500,
-                      height: 600,
-                      resizable: true,
-                      alwaysOnTop: true,
-                      decorations: false,
-                      transparent: false
-                    });
+                    { const geo = savedWindowOptions('timpspawn-popout');
+                      new WebviewWindow('timpspawn-popout', {
+                        url: 'index.html?view=timpspawn',
+                        title: 'Timp Spawn - Metin2 Tools',
+                        resizable: true, alwaysOnTop: true, decorations: false, transparent: false,
+                        width: geo.width ?? 340, height: geo.height ?? 600,
+                        ...(geo.x !== undefined ? { x: geo.x, y: geo.y, center: false } : { center: true }),
+                      });
+                    }
                   }}
                   className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-accent-gold transition-all"
                   title="Pop-out"
@@ -165,17 +167,19 @@ function SpawnTrackerContent() {
                   >
                     <Clock className="w-3.5 h-3.5" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
+                      const geo = savedWindowOptions('gheatatable-popout');
                       new WebviewWindow('gheatatable-popout', {
                         url: 'index.html?view=gheatatable',
                         title: 'Tabel Gheață - Metin2 Tools',
-                        width: 500,
-                        height: 600,
                         resizable: true,
                         alwaysOnTop: true,
                         decorations: false,
-                        transparent: false
+                        transparent: false,
+                        width: geo.width ?? 500,
+                        height: geo.height ?? 600,
+                        ...(geo.x !== undefined ? { x: geo.x, y: geo.y, center: false } : { center: true }),
                       });
                     }}
                     className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-accent-gold transition-all"

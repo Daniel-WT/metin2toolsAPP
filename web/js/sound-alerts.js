@@ -1,39 +1,40 @@
 // ============ SOUND ENGINE ============
-let audioCtx = null;
 let soundLoop1 = null; // < 1 day loop
 let soundLoop4 = null; // < 4 days loop
 let persTargetId = null;
 var _costumeAlarmVolume = 0.5;
 try { var _sv = localStorage.getItem('costume_alarm_volume'); if (_sv !== null) _costumeAlarmVolume = parseFloat(_sv); } catch(e) {}
 
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
+// No singleton AudioContext — each sound creates its own fresh context to avoid
+// the 30-second auto-suspend pop/click caused by Chrome suspending idle contexts.
+function _makeAudioCtx() {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  ctx.resume().catch(() => {});
+  return ctx;
 }
 
-// Unlock AudioContext on first user interaction (browser policy requires gesture)
+// One-time warm-up on first user interaction (browser policy requires a gesture)
 (function() {
-  function unlockAudio() {
-    if (audioCtx) {
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-    } else {
-      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-    }
-    document.removeEventListener('click', unlockAudio, true);
-    document.removeEventListener('keydown', unlockAudio, true);
-    document.removeEventListener('touchstart', unlockAudio, true);
+  function warmUpAudio() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume().then(() => ctx.close()).catch(() => { try { ctx.close(); } catch(_) {} });
+    } catch(e) {}
+    document.removeEventListener('click', warmUpAudio, true);
+    document.removeEventListener('keydown', warmUpAudio, true);
+    document.removeEventListener('touchstart', warmUpAudio, true);
   }
-  document.addEventListener('click', unlockAudio, true);
-  document.addEventListener('keydown', unlockAudio, true);
-  document.addEventListener('touchstart', unlockAudio, true);
+  document.addEventListener('click', warmUpAudio, true);
+  document.addEventListener('keydown', warmUpAudio, true);
+  document.addEventListener('touchstart', warmUpAudio, true);
 })();
 
 // ── Realistic alarm tone builder ──
 // Creates a rich alarm tone with harmonics and tremolo (like a real alarm/siren)
 function playAlarmTone(freq, duration, vol, opts = {}) {
+  if (!vol || vol <= 0) return;
   try {
-    const ctx = getAudioCtx();
+    const ctx = _makeAudioCtx();
     const t = ctx.currentTime;
     const master = ctx.createGain();
     master.connect(ctx.destination);
@@ -82,8 +83,9 @@ function playAlarmTone(freq, duration, vol, opts = {}) {
 // ── ALERT 1: URGENT — sub 1 zi ──
 // Sunet de alarma urgenta tip sirena — ton ascutit pulsant, ca o alarma de incendiu
 function playAlert1() {
+  if (_costumeAlarmVolume <= 0) return;
   try {
-    const ctx = getAudioCtx();
+    const ctx = _makeAudioCtx();
     const t = ctx.currentTime;
     const master = ctx.createGain();
     master.connect(ctx.destination);
@@ -142,8 +144,9 @@ function playAlert1() {
 // ── ALERT 4: AVERTIZARE — sub 4 zile ──
 // Sunet de avertizare calm dar ferm — 3 tonuri melodice descendente (ca o notificare serioasa)
 function playAlert4() {
+  if (_costumeAlarmVolume <= 0) return;
   try {
-    const ctx = getAudioCtx();
+    const ctx = _makeAudioCtx();
     const t = ctx.currentTime;
 
     const tones = [
@@ -212,8 +215,9 @@ function stopSoundLoop(id) {
 
 // ── Calm checklist reminder chime — two soft ascending notes ──
 function playReminderChime() {
+  if (_costumeAlarmVolume <= 0) return;
   try {
-    var ctx = getAudioCtx();
+    var ctx = _makeAudioCtx();
     var t = ctx.currentTime;
     var vol = _costumeAlarmVolume;
     var notes = [

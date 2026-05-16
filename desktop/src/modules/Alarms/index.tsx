@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Bell, Clock, RefreshCcw, Plus, Trash2, Pause, Play, ExternalLink, X, Globe, Volume2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { savedWindowOptions } from '../../lib/windowMemory';
 import { WebviewWindow } from '@tauri-apps/api/window';
 import { ref, onValue, set, remove, push, onChildAdded } from 'firebase/database';
 import { db } from '../../lib/firebase';
@@ -823,11 +824,14 @@ function RepeatTimerCard({ timer, onDelete }: { timer: RepeatTimer; onDelete: ()
       const existing = WebviewWindow.getByLabel(`rt-popout-${timer.id}`);
       if (existing) { await (existing as any).setFocus(); return; }
     } catch {}
-    new WebviewWindow(`rt-popout-${timer.id}`, {
-      url: `/?view=repeat-timer&timerId=${timer.id}`,
-      title: timer.name, width: 200, height: 115,
-      alwaysOnTop: true, decorations: false, resizable: true, center: true,
-    });
+    { const geo = savedWindowOptions(`rt-popout-${timer.id}`);
+      new WebviewWindow(`rt-popout-${timer.id}`, {
+        url: `/?view=repeat-timer&timerId=${timer.id}`,
+        title: timer.name, alwaysOnTop: true, decorations: false, resizable: true,
+        width: geo.width ?? 200, height: geo.height ?? 115,
+        ...(geo.x !== undefined ? { x: geo.x, y: geo.y, center: false } : { center: true }),
+      });
+    }
   }
 
   return (

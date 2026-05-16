@@ -17,7 +17,10 @@ import {
   Trash2,
   Webhook,
   Send,
-  CheckCheck
+  CheckCheck,
+  Bell,
+  Sliders,
+  StickyNote,
 } from 'lucide-react';
 import { ref, onValue, set, update, remove, get } from 'firebase/database';
 import { db } from '../../lib/firebase';
@@ -39,17 +42,23 @@ interface TeamMember {
     alerte?: boolean;
     transfers?: boolean;
     checklist?: boolean;
+    alarms?: boolean;
+    tweaks?: boolean;
+    notes?: boolean;
   };
 }
 
 const PERMISSIONS = [
-  { key: 'spawn', label: 'Spawn Tracker', icon: MapIcon },
-  { key: 'skin', label: 'Skin Reminder', icon: Clock },
-  { key: 'inventory', label: 'Inventory', icon: Package },
-  { key: 'status', label: 'Server Status', icon: Activity },
-  { key: 'alerte', label: 'Alert System', icon: CheckCircle2 },
-  { key: 'transfers', label: 'Transfers', icon: ArrowLeftRight },
-  { key: 'checklist', label: 'Checklist', icon: CheckCircle2 },
+  { key: 'spawn',     label: 'Spawn Tracker', icon: MapIcon      },
+  { key: 'skin',      label: 'Skin Reminder', icon: Clock        },
+  { key: 'inventory', label: 'Inventory',     icon: Package      },
+  { key: 'status',    label: 'Server Status', icon: Activity     },
+  { key: 'alerte',    label: 'Alert System',  icon: CheckCircle2 },
+  { key: 'transfers', label: 'Transfers',     icon: ArrowLeftRight },
+  { key: 'checklist', label: 'Checklist',     icon: CheckCircle2 },
+  { key: 'alarms',    label: 'Alarme',        icon: Bell         },
+  { key: 'tweaks',    label: 'Tweaks',        icon: Sliders      },
+  { key: 'notes',     label: 'Notițe',        icon: StickyNote   },
 ];
 
 async function sendTestWebhook(webhookUrl: string, type: 'skin' | 'server'): Promise<boolean> {
@@ -127,7 +136,7 @@ export default function TeamManagement() {
           role: 'owner',
           online: !!presenceData[ownerId],
           permissions: {
-            spawn: true, skin: true, inventory: true, status: true, alerte: true, transfers: true, checklist: true
+            spawn: true, skin: true, inventory: true, status: true, alerte: true, transfers: true, checklist: true, alarms: true, tweaks: true
           }
         };
         if (!list.find(m => m.uid === ownerId)) {

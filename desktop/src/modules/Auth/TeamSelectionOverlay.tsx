@@ -96,7 +96,7 @@ export default function TeamSelectionOverlay() {
         role: 'member',
         joinedAt: Date.now(),
         permissions: {
-          spawn: true, skin: true, inventory: false, alerte: true, status: true, transfers: false, checklist: true
+          spawn: true, skin: false, inventory: false, alerte: false, status: false, transfers: false, checklist: false, alarms: false, tweaks: false
         }
       });
 

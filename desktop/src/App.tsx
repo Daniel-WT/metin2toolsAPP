@@ -16,7 +16,7 @@ const Settings = React.lazy(() => import('./modules/Settings/index'));
 const TeamManagement = React.lazy(() => import('./modules/TeamManagement/index'));
 
 import { db } from './lib/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, update } from 'firebase/database';
 import { useAuth } from './contexts/AuthContext';
 const LoginOverlay = React.lazy(() => import('./modules/Auth/LoginOverlay'));
 const TeamSelectionOverlay = React.lazy(() => import('./modules/Auth/TeamSelectionOverlay'));
@@ -24,6 +24,7 @@ import { SpawnProvider, useSpawn } from './contexts/SpawnContext';
 import { SpawnAlertModal } from './modules/SpawnTracker/SpawnAlertModal';
 import { SkinAlertModal } from './modules/SkinReminder/SkinAlertModal';
 import { ConfirmRoot } from './components/ConfirmModal';
+import { DepersAlertModal, type DepersAlert } from './modules/Admin/DepersAlertModal';
 import { SkinExpiryWidget } from './modules/SkinReminder/SkinExpiryWidget';
 import { Volume2, Settings as SettingsIcon, Zap, X as CloseIcon, Eye, EyeOff, LogOut } from 'lucide-react';
 
@@ -34,6 +35,7 @@ import { Minus, Square, X, Hexagon } from 'lucide-react';
 const AdminPanel = React.lazy(() => import('./modules/Admin/index'));
 const Tweaks = React.lazy(() => import('./modules/Tweaks/index'));
 const Alarms = React.lazy(() => import('./modules/Alarms/index'));
+const StickyNotes = React.lazy(() => import('./modules/StickyNotes/index'));
 
 const CAT_LABELS: Record<string, string> = {
   'skin-arma': 'Skin Armă', 'costum': 'Costum', 'frizura': 'Frizură',
@@ -68,16 +70,22 @@ function NotificationsPanel({ items }: { items: any[] }) {
           </div>
         ) : (
           <div className="p-3 space-y-1">
-            {expired.map(i => (
-              <div key={i.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-500/[0.04] border border-red-500/10 hover:bg-red-500/[0.08] transition-colors">
-                <div className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-black text-red-400 truncate">{i.name}</p>
-                  <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{CAT_LABELS[i.category] || i.category} · @{i.account}</p>
+            {expired.map(i => {
+              const is67 = i.category === 'sase-sapte';
+              return (
+                <div key={i.id} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors",
+                  is67 ? "bg-emerald-500/[0.04] border-emerald-500/10 hover:bg-emerald-500/[0.08]" : "bg-red-500/[0.04] border-red-500/10 hover:bg-red-500/[0.08]")}>
+                  <div className={cn("w-1.5 h-1.5 rounded-full shrink-0", is67 ? "bg-emerald-500" : "bg-red-500")} />
+                  <div className="flex-1 min-w-0">
+                    <p className={cn("text-[11px] font-black truncate", is67 ? "text-emerald-400" : "text-red-400")}>{i.name}</p>
+                    <p className="text-[9px] text-slate-600 font-bold uppercase tracking-widest">{CAT_LABELS[i.category] || i.category} · @{i.account}</p>
+                  </div>
+                  <span className={cn("text-[9px] font-black shrink-0", is67 ? "text-emerald-500/60" : "text-red-500/60")}>
+                    {is67 ? 'FINALIZAT' : 'EXPIRAT'}
+                  </span>
                 </div>
-                <span className="text-[9px] font-black text-red-500/60 shrink-0">EXPIRAT</span>
-              </div>
-            ))}
+              );
+            })}
             {soon.map(i => (
               <div key={i.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber-500/[0.04] border border-amber-500/10 hover:bg-amber-500/[0.08] transition-colors">
                 <div className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0 animate-pulse" />
@@ -191,6 +199,8 @@ function AppContent() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
   const [notifItems, setNotifItems] = useState<any[]>([]);
+  const [depersAlerts, setDepersAlerts] = useState<DepersAlert[]>([]);
+  const secretItemsRef = useRef<Record<string, any>>({});
 
   // Hide native decorations for premium look
   useEffect(() => {
@@ -247,6 +257,40 @@ function AppContent() {
     });
   }, [user?.teamId]);
 
+  const isAdminUser = !viewAsMember && !!(user?.isSuperAdmin || user?.permissions?.adminPanel);
+
+  // Depers alerts — only for admins, independent of active tab
+  useEffect(() => {
+    if (!isAdminUser || !user?.teamId) return;
+    return onValue(ref(db, `teams/${user.teamId}/secret/items`), (snap) => {
+      secretItemsRef.current = snap.val() || {};
+    });
+  }, [isAdminUser, user?.teamId]);
+
+  useEffect(() => {
+    if (!isAdminUser || !user?.teamId) return;
+    const checkDepers = () => {
+      const now = Date.now();
+      const newAlerts: DepersAlert[] = [];
+      for (const [id, item] of Object.entries(secretItemsRef.current) as [string, any][]) {
+        if (item.depersAt <= now && !item.notifiedDeperss) {
+          newAlerts.push({ id, name: item.name });
+          update(ref(db, `teams/${user.teamId}/secret/items/${id}`), { notifiedDeperss: true }).catch(() => {});
+        }
+      }
+      if (newAlerts.length > 0) {
+        setDepersAlerts(prev => {
+          const ids = new Set(prev.map(a => a.id));
+          const fresh = newAlerts.filter(a => !ids.has(a.id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+      }
+    };
+    checkDepers();
+    const inv = setInterval(checkDepers, 60000);
+    return () => clearInterval(inv);
+  }, [isAdminUser, user?.teamId]);
+
   const isActuallyAdmin = user?.isSuperAdmin && !viewAsMember;
 
   if (isLoading) return <LoadingFallback />;
@@ -281,8 +325,8 @@ function AppContent() {
       case 'transfers': return <Transfers />;
       case 'settings': return <Settings />;
       case 'team': return <TeamManagement />;
-      case 'tweaks': return <Tweaks />;
       case 'alarms': return <Alarms />;
+      case 'notes': return <StickyNotes />;
       case 'admin': return isActuallyAdmin ? <AdminPanel /> : <Dashboard />;
       default: return <Dashboard />;
     }
@@ -510,7 +554,11 @@ function AppContent() {
         </header>
         <div className="p-8 flex-1 overflow-auto">
           <Suspense fallback={<LoadingFallback />}>
-            {renderContent()}
+            {/* Tweaks stays always mounted so TCP/global shortcuts remain active on all tabs */}
+            <div style={{ display: activeTab === 'tweaks' ? undefined : 'none' }}>
+              <Tweaks />
+            </div>
+            {activeTab !== 'tweaks' && renderContent()}
           </Suspense>
         </div>
       </main>
@@ -521,6 +569,7 @@ function AppContent() {
     <SkinAlertModal />
     <SkinExpiryWidget />
     <ConfirmRoot />
+    <DepersAlertModal alerts={depersAlerts} onDismiss={() => setDepersAlerts([])} />
     </div>
   );
 }

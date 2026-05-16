@@ -11,6 +11,7 @@ import { GheataTable } from "./modules/SpawnTracker/GheataTable";
 import { CHPopoutView } from "./modules/SpawnTracker/CHPopoutView";
 import AlertWindowView from "./modules/SpawnTracker/AlertWindowView";
 import RepeatTimerPopout from "./modules/Alarms/RepeatTimerPopout";
+import StickyNotePopout from "./modules/StickyNotes/StickyNotePopout";
 
 const urlParams = new URLSearchParams(window.location.search);
 const view = urlParams.get('view');
@@ -33,6 +34,8 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
           <div className="bg-[#050506] h-screen w-screen overflow-hidden">
             <RepeatTimerPopout timerId={timerId} />
           </div>
+        ) : view === 'sticky-note' ? (
+          <StickyNotePopout />
         ) : (
           <App />
         )}

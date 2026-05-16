@@ -152,7 +152,7 @@ window.AdminModule = {
                 <div style="margin-top:12px;">
                     <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.2);">Taburi echipă:</span>
                     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
-                        ${[{k:'spawn',l:'Spawn'},{k:'skin',l:'Costume'},{k:'inventory',l:'Inventar'},{k:'alerte',l:'Alarme'},{k:'status',l:'Servere'},{k:'transfers',l:'Transferuri'},{k:'checklist',l:'Checklist'}].map(p => {
+                        ${[{k:'spawn',l:'Spawn'},{k:'skin',l:'Costume'},{k:'inventory',l:'Inventar'},{k:'alerte',l:'Alarme'},{k:'status',l:'Servere'},{k:'transfers',l:'Transferuri'},{k:'checklist',l:'Checklist'},{k:'notes',l:'Notițe'}].map(p => {
                             const on = !!(teamMemberPerms[p.k]);
                             return `<span onclick="AdminModule.toggleTabPermission('${uid}','${p.k}')" style="cursor:pointer;font-size:9px;padding:2px 8px;border-radius:5px;font-weight:900;letter-spacing:.03em;border:1px solid ${on ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'};background:${on ? 'rgba(52,211,153,0.08)' : 'transparent'};color:${on ? '#34d399' : 'rgba(255,255,255,0.2)'};" title="Toggle ${p.l}">${p.l}</span>`;
                         }).join('')}
@@ -222,7 +222,7 @@ window.AdminModule = {
             return;
         }
 
-        const TAB_PERMS = [{k:'spawn',l:'Spawn'},{k:'skin',l:'Costume'},{k:'inventory',l:'Inventar'},{k:'alerte',l:'Alarme'},{k:'status',l:'Servere'},{k:'transfers',l:'Transferuri'},{k:'checklist',l:'Checklist'}];
+        const TAB_PERMS = [{k:'spawn',l:'Spawn'},{k:'skin',l:'Costume'},{k:'inventory',l:'Inventar'},{k:'alerte',l:'Alarme'},{k:'status',l:'Servere'},{k:'transfers',l:'Transferuri'},{k:'checklist',l:'Checklist'},{k:'notes',l:'Notițe'}];
         const canManage = !!window.currentUserProfile?.isSuperAdmin;
 
         grid.innerHTML = teams.map(([id, t]) => {

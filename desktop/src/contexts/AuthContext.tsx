@@ -17,7 +17,7 @@ interface UserProfile {
   teamId?: string | null;
   role?: string;
   isSuperAdmin?: boolean;
-  permissions?: { serverStatus?: boolean; adminPanel?: boolean; spawn?: boolean; skin?: boolean; inventory?: boolean; status?: boolean; alerte?: boolean; transfers?: boolean; checklist?: boolean; [key: string]: boolean | undefined };
+  permissions?: { serverStatus?: boolean; adminPanel?: boolean; spawn?: boolean; skin?: boolean; inventory?: boolean; status?: boolean; alerte?: boolean; transfers?: boolean; checklist?: boolean; alarms?: boolean; tweaks?: boolean; [key: string]: boolean | undefined };
 }
 
 interface AuthContextType {

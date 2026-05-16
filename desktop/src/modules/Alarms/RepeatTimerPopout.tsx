@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { appWindow, LogicalSize } from '@tauri-apps/api/window';
+import { useWindowMemory } from '../../lib/windowMemory';
 import { X, RefreshCcw, Pause, Play } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import {
@@ -11,6 +12,7 @@ import {
 
 export default function RepeatTimerPopout({ timerId }: { timerId: string }) {
   const [timer, setTimer] = useState<RepeatTimer | null>(null);
+  useWindowMemory(`rt-popout-${timerId}`);
   const [tick, setTick] = useState(0);
   const lastTickSec = useRef(-1);
   const [flash, setFlash] = useState(false);
@@ -139,9 +141,9 @@ export default function RepeatTimerPopout({ timerId }: { timerId: string }) {
       </div>
 
       {/* Countdown — preia tot spatiul disponibil */}
-      <div className="flex-1 min-h-0 flex items-center justify-center">
-        <span className={cn(
-          'text-5xl font-black tabular-nums font-display leading-none transition-colors',
+      <div data-tauri-drag-region className="flex-1 min-h-0 flex items-center justify-center cursor-move">
+        <span data-tauri-drag-region className={cn(
+          'text-5xl font-black tabular-nums font-display leading-none transition-colors pointer-events-none',
           timer.paused ? 'text-slate-500' : isUrgent ? 'text-red-400' : 'text-slate-100'
         )}>
           {fmtRepeat(Math.ceil(remaining))}

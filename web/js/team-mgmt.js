@@ -147,7 +147,8 @@ function renderMemberList() {
         { key: 'alerte', label: 'Alarme' },
         { key: 'status', label: 'Servere' },
         { key: 'transfers', label: 'Transferuri' },
-        { key: 'checklist', label: 'Checklist' }
+        { key: 'checklist', label: 'Checklist' },
+        { key: 'notes', label: 'Notițe' }
       ].map(p => {
         const hasPerm = perms[p.key];
         // Show toggle if canManage AND target is not leader (self CAN be edited by admin)
@@ -264,7 +265,8 @@ function applyMemberPermissions(m) {
     'alerte': 'alerte',
     'server-status': 'status',
     'transfers': 'transfers',
-    'checklist': 'checklist'
+    'checklist': 'checklist',
+    'sticky-notes': 'notes'
   };
 
   Object.entries(tabMapping).forEach(([tabId, permKey]) => {

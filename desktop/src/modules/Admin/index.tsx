@@ -31,6 +31,9 @@ interface TabPermissions {
   status?: boolean;
   transfers?: boolean;
   checklist?: boolean;
+  alarms?: boolean;
+  tweaks?: boolean;
+  notes?: boolean;
 }
 
 interface MemberData {
@@ -61,10 +64,13 @@ const TAB_PERMISSIONS: { key: keyof TabPermissions; label: string }[] = [
   { key: 'spawn',     label: 'Spawn'       },
   { key: 'skin',      label: 'Costume'     },
   { key: 'inventory', label: 'Inventar'    },
-  { key: 'alerte',    label: 'Alarme'      },
+  { key: 'alerte',    label: 'Alert System'},
   { key: 'status',    label: 'Servere'     },
   { key: 'transfers', label: 'Transferuri' },
   { key: 'checklist', label: 'Checklist'   },
+  { key: 'alarms',    label: 'Alarme'      },
+  { key: 'tweaks',    label: 'Tweaks'      },
+  { key: 'notes',     label: 'Notițe'      },
 ];
 
 interface Team {
@@ -90,9 +96,6 @@ export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState<'requests' | 'teams' | 'users' | 'bans' | 'logs' | 'depers'>('requests');
   const [logs, setLogs] = useState<{ id: number; msg: string; type: string; ts: number }[]>([]);
   const logIdRef = useRef(0);
-  const [scrapeStatus, setScrapeStatus] = useState<null | 'loading' | 'ok' | 'error'>(null);
-  const [scrapeMsg, setScrapeMsg] = useState('');
-  const [lastScrapeInfo, setLastScrapeInfo] = useState<{ type?: string; status?: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [secretItems, setSecretItems] = useState<SecretItem[]>([]);
   const [nowMs, setNowMs] = useState(Date.now());
@@ -229,7 +232,6 @@ export default function AdminPanel() {
       const val = snap.val();
       if (!val || val === prevScrape) return;
       prevScrape = val;
-      setLastScrapeInfo({ type: val.type, status: val.status });
       if (val.status === 'started') addLog('Worker: scrape ' + (val.type || '').toUpperCase() + ' pornit', 'worker');
       else if (val.status === 'done') addLog('Worker: scrape ' + (val.type || '').toUpperCase() + ' finalizat' + (val.transfers != null ? ' · ' + val.transfers + ' transferuri' : ''), 'worker');
     });
@@ -265,35 +267,6 @@ export default function AdminPanel() {
 
     return () => { unsubScrape(); unsubDetect(); unsubTf(); };
   }, [addLog]);
-
-  const triggerScrape = async (mode: string, forceAfter: boolean) => {
-    if (scrapeStatus === 'loading') return;
-    if (!await appConfirm(`Declanseaza scrape ${mode.toUpperCase()}?`, { title: 'Colectare Date', variant: 'warning' })) return;
-    setScrapeStatus('loading');
-    setScrapeMsg('');
-    addLog('Scrape ' + mode.toUpperCase() + ' declansat manual', 'scrape');
-    try {
-      const r = await fetch('https://metin2tools.pages.dev/api/trigger-scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode, force_after: forceAfter })
-      });
-      const data = await r.json();
-      if (data.ok) {
-        setScrapeStatus('ok');
-        addLog('Scrape ' + mode.toUpperCase() + ' trimis. Verifica GitHub Actions.', 'worker');
-      } else {
-        setScrapeStatus('error');
-        setScrapeMsg(data.error || 'Eroare necunoscuta');
-        addLog('Scrape eroare: ' + (data.error || ''), 'error');
-      }
-    } catch (e: any) {
-      setScrapeStatus('error');
-      setScrapeMsg(e.message);
-      addLog('Scrape eroare: ' + e.message, 'error');
-    }
-    setTimeout(() => setScrapeStatus(null), 4000);
-  };
 
   const handleApprove = async (request: TeamRequest) => {
     try {
@@ -442,6 +415,11 @@ export default function AdminPanel() {
           if (userData?.teamId) updates[`teams/${userData.teamId}/members/${uid}`] = null;
           updates[`users/${uid}`] = null;
           updates[`presence/${uid}`] = null;
+          // Ban email so active sessions get kicked out immediately
+          if (userData?.email) {
+            const emailKey = userData.email.replace(/\./g, '_');
+            updates[`banned_emails/${emailKey}`] = userData.email;
+          }
           await update(ref(db), updates);
         } catch (err) {
           console.error("Delete user failed:", err);
@@ -894,39 +872,6 @@ export default function AdminPanel() {
           </div>
         ) : activeTab === 'logs' ? (
           <div className="space-y-4">
-            {/* Scrape card */}
-            <div className="bg-slate-900/40 border border-white/5 rounded-2xl overflow-hidden">
-              <div className="px-6 py-4 border-b border-white/5 bg-white/5">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Colectare Date</h3>
-              </div>
-              <div className="px-6 py-4">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    onClick={() => triggerScrape('before', false)}
-                    disabled={scrapeStatus === 'loading'}
-                    className="px-4 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-[11px] font-black uppercase tracking-widest text-slate-400 hover:border-accent-gold/40 hover:text-accent-gold transition-all disabled:opacity-40"
-                  >
-                    Before
-                  </button>
-                  <button
-                    onClick={() => triggerScrape('after', true)}
-                    disabled={scrapeStatus === 'loading'}
-                    className="px-4 py-2 bg-white/[0.04] border border-white/10 rounded-lg text-[11px] font-black uppercase tracking-widest text-slate-400 hover:border-accent-gold/40 hover:text-accent-gold transition-all disabled:opacity-40"
-                  >
-                    After
-                  </button>
-                  {scrapeStatus === 'loading' && <span className="text-[11px] text-slate-500 font-bold">Se trimite...</span>}
-                  {scrapeStatus === 'ok' && <span className="text-[11px] text-emerald-400 font-bold">Trimis. Verifica GitHub Actions.</span>}
-                  {scrapeStatus === 'error' && <span className="text-[11px] text-red-400 font-bold">Eroare: {scrapeMsg}</span>}
-                </div>
-                {lastScrapeInfo && (
-                  <p className="text-[10px] text-slate-600 mt-3">
-                    Ultimul scrape: <span className="text-slate-500">{(lastScrapeInfo.type || '').toUpperCase()}</span> · {lastScrapeInfo.status}
-                  </p>
-                )}
-              </div>
-            </div>
-
             {/* Activity log */}
             <div className="bg-slate-900/40 border border-white/5 rounded-2xl overflow-hidden">
               <div className="px-6 py-4 border-b border-white/5 bg-white/5 flex items-center justify-between">

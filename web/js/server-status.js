@@ -249,6 +249,14 @@ function _ssSetupFirebaseListener() {
       _ssSelectedServers[targetServer] = true;
       _ssAutoMonitorMode = true;
       _ssAutoMonitorPrevSelected = prevSelected;
+      var _padA = function(n) { return String(n).padStart(2, '0'); };
+      var _nowA = new Date();
+      var _tA = _padA(_nowA.getHours()) + ':' + _padA(_nowA.getMinutes()) + ':' + _padA(_nowA.getSeconds());
+      fetch('/api/discord-server-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'monitor_started_auto', server: 'Magyarorszag', detectedAt: _tA, webhookUrl: window.teamWebhookServer || undefined })
+      }).catch(function() {});
       _ssStartMonitorInternal();
     });
   });
@@ -271,6 +279,14 @@ function _ssStartScheduleChecker() {
     // Trigger within 90s window around scheduled time
     if (now >= _ssScheduledAt && now < _ssScheduledAt + 90000) {
       if (db) db.ref(p('serverStatus/_scheduledMonitor')).set({ enabled: false, scheduledAt: 0 });
+      var _padS = function(n) { return String(n).padStart(2, '0'); };
+      var _nowS = new Date();
+      var _tS = _padS(_nowS.getHours()) + ':' + _padS(_nowS.getMinutes()) + ':' + _padS(_nowS.getSeconds());
+      fetch('/api/discord-server-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'monitor_started_scheduled', server: 'Magyarorszag', detectedAt: _tS, webhookUrl: window.teamWebhookServer || undefined })
+      }).catch(function() {});
       _ssStartMonitorInternal();
       if (typeof showToast === 'function') showToast('Monitorizare pornita automat conform programului.', 'info');
     }
@@ -302,11 +318,13 @@ function ssStartMonitor() {
     if (typeof showToast === 'function') showToast('Doar adminii pot porni monitorizarea!', 'error');
     return;
   }
-  // Send Discord notification — started manually
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var _now = new Date();
+  var _t = pad(_now.getHours()) + ':' + pad(_now.getMinutes()) + ':' + pad(_now.getSeconds());
   fetch('/api/discord-server-status', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ type: 'monitor_started_manual', server: 'Magyarorszag', webhookUrl: window.teamWebhookServer || undefined })
+    body: JSON.stringify({ type: 'monitor_started_manual', server: 'Magyarorszag', detectedAt: _t, webhookUrl: window.teamWebhookServer || undefined })
   }).catch(function() {});
   _ssStartMonitorInternal();
 }
@@ -497,10 +515,13 @@ function _ssProcessResults(results) {
         renderServerStatus();
       }
       // Discord notification — all online, monitoring stopped (manual or auto)
+      var _padD = function(n) { return String(n).padStart(2, '0'); };
+      var _nowD = new Date();
+      var _tD = _padD(_nowD.getHours()) + ':' + _padD(_nowD.getMinutes()) + ':' + _padD(_nowD.getSeconds());
       fetch('/api/discord-server-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'monitor_done', server: 'Magyarorszag', manual: isManualMode, webhookUrl: window.teamWebhookServer || undefined })
+        body: JSON.stringify({ type: 'monitor_done', server: 'Magyarorszag', detectedAt: _tD, webhookUrl: window.teamWebhookServer || undefined })
       }).catch(function () {});
       // Save server online timestamp — used by transfer scraper (same as cron does)
       if (db) db.ref(p('serverStatus/_serverOnlineAt')).set(Date.now());
@@ -567,10 +588,13 @@ function _ssNotifyOnline(key) {
 
 // ── Send Discord alert for server/ch online ──
 function _ssSendDiscordServerUp(serverLabel, chLabel) {
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var now = new Date();
+  var detectedAt = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
   fetch('/api/discord-server-status', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ server: serverLabel, channel: chLabel, status: 'online', webhookUrl: window.teamWebhookServer || undefined })
+    body: JSON.stringify({ server: serverLabel, channel: chLabel, status: 'online', detectedAt: detectedAt, webhookUrl: window.teamWebhookServer || undefined })
   }).catch(function () { });
 }
 

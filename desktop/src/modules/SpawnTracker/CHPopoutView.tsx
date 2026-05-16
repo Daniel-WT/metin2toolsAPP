@@ -3,9 +3,14 @@ import { useSpawn } from '../../contexts/SpawnContext';
 import { cn } from '../../lib/utils';
 import { X } from 'lucide-react';
 import { appWindow } from '@tauri-apps/api/window';
+import { useWindowMemory } from '../../lib/windowMemory';
 
-function TimeInput({ ch, value, onUpdate }: { ch: number, value: string, onUpdate: (ch: number, val: string) => void }) {
-  const [isEditing, setIsEditing] = useState(false);
+function TimeInput({ ch, value, onUpdate, isEditing, onEditEnd }: {
+  ch: number; value: string;
+  onUpdate: (ch: number, val: string) => void;
+  isEditing: boolean;
+  onEditEnd: () => void;
+}) {
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -15,44 +20,39 @@ function TimeInput({ ch, value, onUpdate }: { ch: number, value: string, onUpdat
     }
   }, [isEditing]);
 
+  const normalizeAndClose = () => {
+    const raw = (inputRef.current?.value ?? value).replace(/[^0-9]/g, '');
+    if (raw.length >= 3) {
+      const normalized = raw.slice(0, 2) + ':' + raw.slice(2).padStart(2, '0');
+      onUpdate(ch, normalized);
+    }
+    onEditEnd();
+  };
+
   if (!isEditing) {
     return (
-      <div 
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsEditing(true);
-        }}
-        className="w-fit mx-auto px-4 flex items-center justify-center text-[clamp(1.5rem,7vw,2.6rem)] font-black tabular-nums tracking-tight text-slate-100 leading-none cursor-text hover:text-accent-gold transition-colors select-none"
-      >
+      <div className="w-fit mx-auto px-2 flex items-center justify-center text-[clamp(0.8rem,7vw,2.6rem)] font-black tabular-nums tracking-tight text-slate-100 leading-none select-none pointer-events-none">
         {value || '--:--'}
       </div>
     );
   }
 
   return (
-    <input 
+    <input
       ref={inputRef}
       type="text"
       placeholder="--:--"
       value={value}
-      onBlur={() => setIsEditing(false)}
-      onKeyDown={(e) => { if (e.key === 'Enter') setIsEditing(false); }}
+      onBlur={() => { normalizeAndClose(); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') normalizeAndClose(); }}
       onClick={(e) => e.stopPropagation()}
       onChange={(e) => {
         let val = e.target.value.replace(/[^0-9]/g, '');
         if (val.length > 4) val = val.slice(0, 4);
-        
-        let formatted = val;
-        if (val.length >= 3) {
-          formatted = val.slice(0, 2) + ':' + val.slice(2);
-        } else if (val.length > 0) {
-          formatted = val;
-        }
-        
-        onUpdate(ch, formatted);
+        onUpdate(ch, val);
       }}
       style={{ width: '80px' }}
-      className="bg-transparent rounded text-center text-[clamp(1.5rem,7vw,2.6rem)] font-black tabular-nums tracking-tight text-white leading-none outline-none border-none mx-auto"
+      className="bg-transparent rounded text-center text-[clamp(0.8rem,7vw,2.6rem)] font-black tabular-nums tracking-tight text-white leading-none outline-none border-none mx-auto"
     />
   );
 }
@@ -63,21 +63,36 @@ export function CHPopoutView() {
   useEffect(() => {
     appWindow.setDecorations(false).catch(console.error);
   }, []);
+  useWindowMemory('timpspawn-popout');
 
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
   const [showOnFeedback, setShowOnFeedback] = useState(false);
   const [now, setNow] = useState(new Date(Date.now() + serverTimeOffset));
+  const [editingCh, setEditingCh] = useState<number | null>(null);
+  const clickTimers = React.useRef<Partial<Record<number, ReturnType<typeof setTimeout>>>>({});
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date(Date.now() + serverTimeOffset)), 1000);
     return () => clearInterval(interval);
   }, [serverTimeOffset]);
 
-  const handleCHClick = (ch: number) => {
-    const now = new Date();
-    const mm = now.getMinutes().toString().padStart(2, '0');
-    const ss = now.getSeconds().toString().padStart(2, '0');
-    setCHTime(ch, `${mm}:${ss}`);
+  const handleCellClick = (ch: number) => {
+    if (editingCh === ch) return;
+    if (clickTimers.current[ch]) {
+      // Second click within 220ms — it's a double-click: enter edit mode
+      clearTimeout(clickTimers.current[ch]);
+      delete clickTimers.current[ch];
+      setEditingCh(ch);
+      return;
+    }
+    // First click — wait to distinguish from double-click
+    clickTimers.current[ch] = setTimeout(() => {
+      delete clickTimers.current[ch];
+      const n = new Date();
+      const mm = n.getMinutes().toString().padStart(2, '0');
+      const ss = n.getSeconds().toString().padStart(2, '0');
+      setCHTime(ch, `${mm}:${ss}`);
+    }, 220);
   };
 
   const handleCHRightClick = (e: React.MouseEvent, ch: number) => {
@@ -203,18 +218,18 @@ export function CHPopoutView() {
       {/* Header / Big Timer — arata ora curenta MM:SS */}
       <div className="flex-1 flex flex-col items-center justify-center animate-in fade-in slide-in-from-top-4 duration-700 min-h-0">
         <div className="flex items-baseline justify-center gap-0.5 -mb-1">
-          <span className="text-[clamp(1.5rem,8vw,3.5rem)] font-black text-slate-100 tabular-nums">
+          <span className="text-[clamp(1rem,13vw,5.5rem)] font-black text-slate-100 tabular-nums">
             {now.getMinutes().toString().padStart(2, '0')}
           </span>
-          <span className="text-[clamp(0.8rem,3vw,1.2rem)] font-black text-slate-500 mr-1">m</span>
-          <span className="text-[clamp(1.5rem,8vw,3.5rem)] font-black text-white tabular-nums">
+          <span className="text-[clamp(0.4rem,5vw,2rem)] font-black text-slate-500 mr-1">m</span>
+          <span className="text-[clamp(1rem,13vw,5.5rem)] font-black text-white tabular-nums">
             {now.getSeconds().toString().padStart(2, '0')}
           </span>
-          <span className="text-[clamp(0.8rem,3vw,1.2rem)] font-black text-slate-500">s</span>
+          <span className="text-[clamp(0.4rem,5vw,2rem)] font-black text-slate-500">s</span>
         </div>
         {nextCH ? (
           <p className={cn(
-            "text-[clamp(8px,2.5vw,12px)] font-bold tracking-wider transition-colors",
+            "text-[clamp(7px,3.5vw,15px)] font-bold tracking-wider transition-colors",
             nextCH.diff! < 60 ? "text-red-500 animate-pulse" :
             nextCH.diff! < 300 ? "text-accent-gold" :
             "text-slate-500"
@@ -229,9 +244,9 @@ export function CHPopoutView() {
       {/* Grid of CHs */}
       <div className="flex-[2] grid grid-cols-2 gap-1 w-full min-h-0 select-none">
         {chList.map(({ ch, time, diff, isBeaten }) => (
-          <div 
+          <div
             key={ch}
-            onClick={() => handleCHClick(ch)}
+            onClick={() => handleCellClick(ch)}
             onContextMenu={(e) => handleCHRightClick(e, ch)}
             className={cn(
               "relative bg-slate-900/40 border border-white/5 rounded p-1 flex flex-col items-center justify-center transition-all cursor-pointer hover:bg-white/5 h-full pointer-events-auto select-none",
@@ -241,7 +256,7 @@ export function CHPopoutView() {
           >
              <div className="absolute left-1 top-1 flex flex-col items-center pointer-events-none">
                 <span className={cn(
-                   "text-[8px] font-black leading-none",
+                   "text-[clamp(9px,3.5vw,15px)] font-black leading-none",
                    diff !== null && diff < 60 ? "text-red-500" :
                    diff !== null && diff < 300 ? "text-accent-gold" :
                    "text-slate-500"
@@ -249,9 +264,11 @@ export function CHPopoutView() {
              </div>
              
              <div className="flex flex-col items-center w-full">
-                <TimeInput ch={ch} value={time} onUpdate={setCHTime} />
+                <TimeInput ch={ch} value={time} onUpdate={setCHTime}
+                  isEditing={editingCh === ch}
+                  onEditEnd={() => setEditingCh(null)} />
                 <span className={cn(
-                   "text-[clamp(1.1rem,5vw,2rem)] font-black tabular-nums leading-none pointer-events-none",
+                   "text-[clamp(0.6rem,5vw,2rem)] font-black tabular-nums leading-none pointer-events-none",
                    diff !== null && diff < 60 ? "text-red-500/80" :
                    diff !== null && diff < 300 ? "text-accent-gold/80" :
                    "text-slate-500"

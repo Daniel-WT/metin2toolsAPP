@@ -10,12 +10,8 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <footer id="app-footer" style="position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: #444; pointer-events: none; z-index: 9999;">
-      v8.6.0
-    </footer>
     <script>
       if (window.location.search.includes('view=')) {
-        document.getElementById('app-footer').style.display = 'none';
         document.body.style.backgroundColor = 'transparent';
         document.body.style.overflow = 'hidden';
       }

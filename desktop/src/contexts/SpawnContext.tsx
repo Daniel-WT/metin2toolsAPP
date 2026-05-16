@@ -259,6 +259,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     ctx.resume().catch(() => {});
 
     const sliderVol = Math.min(1, globalVolume * spawnVolume);
+    if (sliderVol < 0.001) { ctx.close().catch(() => {}); return; }
     const t0 = ctx.currentTime;
 
     if (type === '2min') {
@@ -308,7 +309,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const t1 = t0 + pair.start;
         g1.gain.setValueAtTime(0, t1);
         g1.gain.linearRampToValueAtTime(vol, t1 + 0.01);
-        g1.gain.exponentialRampToValueAtTime(0.001, t1 + 0.4);
+        g1.gain.linearRampToValueAtTime(0, t1 + 0.4);
         osc1.start(t1); osc1.stop(t1 + 0.42);
         osc1h.start(t1); osc1h.stop(t1 + 0.42);
         const osc2 = ctx.createOscillator();
@@ -322,7 +323,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const t2 = t1 + 0.35;
         g2.gain.setValueAtTime(0, t2);
         g2.gain.linearRampToValueAtTime(vol * 0.85, t2 + 0.01);
-        g2.gain.exponentialRampToValueAtTime(0.001, t2 + 0.45);
+        g2.gain.linearRampToValueAtTime(0, t2 + 0.45);
         osc2.start(t2); osc2.stop(t2 + 0.47);
         osc2h.start(t2); osc2h.stop(t2 + 0.47);
         activeOscillators.current.push(osc1, osc1h, osc2, osc2h);

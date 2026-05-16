@@ -65,6 +65,51 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
       .sort(([, a], [, b]) => b.total - a.total);
   }, [stats]);
 
+  const exportCSV = () => {
+    let csv = '';
+    const dl = (filename: string) => {
+      const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    if (activeTab === 'prob') {
+      const spawns = filteredHistory.length || 1;
+      csv  = 'Camera,Capetenii,Generali,Total,% Capetenii,% Generali,Avg/spawn Capetenii,Avg/spawn Generali\n';
+      sortedStats.forEach(([rid, s]) => {
+        const pSef = s.total > 0 ? ((s.sef / s.total) * 100).toFixed(1) : '0.0';
+        const pGen = s.total > 0 ? ((s.gen / s.total) * 100).toFixed(1) : '0.0';
+        csv += `${rid},${s.sef},${s.gen},${s.total},${pSef}%,${pGen}%,${(s.sef / spawns).toFixed(2)},${(s.gen / spawns).toFixed(2)}\n`;
+      });
+      csv += `\nTOTAL,${stats.totalSef},${stats.totalGen},${stats.totalEntries},,,,\n`;
+      csv += `Spawnuri analizate,${spawns}\n`;
+      dl('probabilitati-spawn.csv');
+    } else if (activeTab === 'list') {
+      csv  = 'Data,Ora,Tip,Capetenii,Generali,CH1,CH2,CH3,CH4,CH5,CH6\n';
+      filteredHistory.forEach(h => {
+        const d = new Date(h.ts);
+        const date = d.toLocaleDateString('ro-RO');
+        const time = d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' });
+        let sCount = 0, gCount = 0;
+        const chRooms: string[] = Array(6).fill('');
+        Object.entries(h.rooms || {}).forEach(([rid, chData]: any) => {
+          const chList = Array.isArray(chData) ? chData : Object.values(chData);
+          (chList as any[]).forEach((e: any) => {
+            if (e.type === 'sef') sCount++;
+            else if (e.type === 'gen') gCount++;
+            const chIdx = (e.ch ?? 0) - 1;
+            if (chIdx >= 0 && chIdx < 6) chRooms[chIdx] = rid;
+          });
+        });
+        csv += `${date},${time},${h.spawnType || 'simplu'},${sCount},${gCount},${chRooms.join(',')}\n`;
+      });
+      dl('istoric-spawn.csv');
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -95,7 +140,8 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
               >
                 <BarChart3 className="w-3 h-3" /> Probabilități
               </button>
-              <button 
+              <button
+                onClick={exportCSV}
                 className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-all"
               >
                 <Download className="w-3 h-3" /> Export

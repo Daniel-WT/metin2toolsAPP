@@ -134,6 +134,7 @@ document.querySelector('.main-tabs').addEventListener('click', e => {
   if (tabId === 'server-status' && typeof renderServerStatus === 'function') { renderServerStatus(); }
   if (tabId === 'transfers' && typeof loadTransferData === 'function') { loadTransferData(); }
   if (tabId === 'checklist' && typeof renderChecklists === 'function') { renderChecklists(); }
+  if (tabId === 'sticky-notes' && typeof renderStickyNotes === 'function') { renderStickyNotes(); }
   if (tabId === 'team-management' && typeof renderMemberList === 'function') { renderMemberList(); }
   
   if (tabId === 'admin' && window.AdminModule) {

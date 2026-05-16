@@ -22,3 +22,16 @@ web/.wrangler/
 # OS
 .DS_Store
 Thumbs.db
+
+# Tauri signing keys — nu se commitează niciodată
+desktop/tauri.key
+desktop/tauri.key.pub
+
+# AI agent memory & config files
+GEMINI.md
+web/GEMINI.md
+desktop/GEMINI.md
+.claude/
+CLAUDE.md
+web/CLAUDE.md
+desktop/CLAUDE.md

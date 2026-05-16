@@ -10,12 +10,13 @@ interface SkinItem {
   id: string;
   name: string;
   account: string;
+  category?: string;
   expiresAt: number;
   personalized?: boolean;
   depersExpiresAt?: number | null;
 }
 
-type AlertType = '4d' | '24h' | '6h' | '5h' | '4h' | '3h' | '2h' | '1h';
+type AlertType = '4d' | '24h' | '6h' | '5h' | '4h' | '3h' | '2h' | '1h' | 'finalizat';
 
 interface PendingAlert {
   item: SkinItem;
@@ -138,40 +139,40 @@ export function SkinAlertModal() {
 
       items.forEach(item => {
         if (!item.expiresAt || isNaN(item.expiresAt)) {
-          console.log(`[SkinAlert]  ✗ ${item.name || item.id} — expiresAt invalid (${item.expiresAt})`);
           return;
         }
         const ms = item.expiresAt - now;
-        const hLeft = (ms / 3600000).toFixed(1);
-        if (ms <= 0) {
-          console.log(`[SkinAlert]  ✗ ${item.name} — expirat deja`);
+        const expBucket = Math.floor(item.expiresAt / 60000);
+        const is67 = item.category === 'sase-sapte';
+
+        if (is67) {
+          // 6/7: alertă doar la finalizare (ms <= 0)
+          if (ms <= 0) {
+            const key = `${item.id}_finalizat_${expBucket}`;
+            if (!confirmedRef.current.has(key)) {
+              toAdd.push({ item, type: 'finalizat', key });
+            }
+          }
           return;
         }
 
-        const expBucket = Math.floor(item.expiresAt / 60000);
+        if (ms <= 0) return;
 
         const unconfirmed = THRESHOLDS.filter(t =>
           ms <= t.ms && !confirmedRef.current.has(`${item.id}_${t.type}_${expBucket}`)
         );
-        const blocked = THRESHOLDS.filter(t =>
-          ms <= t.ms && confirmedRef.current.has(`${item.id}_${t.type}_${expBucket}`)
-        );
 
         if (ms > 24 * 3600000) {
-          console.log(`[SkinAlert]  · ${item.name} — ${hLeft}h rămas (sub 24h = alertă; acum prea devreme)`);
+          // prea devreme
         } else if (unconfirmed.length > 0) {
           const t = unconfirmed[unconfirmed.length - 1];
-          console.log(`[SkinAlert]  ✓ ${item.name} — ${hLeft}h rămas → alertă: ${t.type}`);
           toAdd.push({ item, type: t.type, key: `${item.id}_${t.type}_${expBucket}` });
           return;
-        } else {
-          console.log(`[SkinAlert]  ⚠ ${item.name} — ${hLeft}h rămas dar toate alertele confirmate (${blocked.map(t=>t.type).join(', ')})`);
         }
 
         if (item.personalized && !item.depersExpiresAt) {
           const key = `${item.id}_4d_${expBucket}`;
           if (ms <= 4 * 24 * 3600000 && !confirmedRef.current.has(key)) {
-            console.log(`[SkinAlert]  ✓ ${item.name} — personalizat, sub 4 zile → alertă: 4d`);
             toAdd.push({ item, type: '4d', key });
           }
         }
@@ -213,6 +214,7 @@ export function SkinAlertModal() {
   if (pending.length === 0) return null;
 
   const alertLabel = (type: AlertType) =>
+    type === 'finalizat' ? '6/7 Finalizat!' :
     type === '4d' ? 'Sub 4 zile (Personalizat)' : `Sub ${type}`;
 
   return (
@@ -227,7 +229,9 @@ export function SkinAlertModal() {
             </div>
           </div>
           <div className="text-center">
-            <h2 className="text-xl font-black text-white tracking-tighter uppercase">Item Expiră!</h2>
+            <h2 className={cn("text-xl font-black tracking-tighter uppercase", pending.every(a => a.type === 'finalizat') ? "text-emerald-400" : "text-white")}>
+              {pending.every(a => a.type === 'finalizat') ? 'Item Finalizat!' : 'Item Expiră!'}
+            </h2>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
               Apasă OK pentru a opri alarma
             </p>
@@ -244,6 +248,7 @@ export function SkinAlertModal() {
                     <Clock className="w-3 h-3 shrink-0 text-slate-500" />
                     <span className={cn(
                       "text-[10px] font-black",
+                      type === 'finalizat' ? "text-emerald-400" :
                       type !== '4d' ? "text-red-400 animate-pulse" : "text-amber-400"
                     )}>
                       {alertLabel(type)}
