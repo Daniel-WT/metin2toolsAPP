@@ -40,15 +40,26 @@ jobs:
           RAW_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
         run: |
           $raw = $env:RAW_KEY
+          $keyFile = "$env:RUNNER_TEMP\tauri_signing.key"
+
+          # Detect format and write raw minisign text to temp file
           if ($raw -match 'untrusted comment') {
-            $normalized = $raw -replace "`r`n", "`n" -replace "`r", "`n"
-            $bytes = [System.Text.Encoding]::UTF8.GetBytes($normalized)
-            $env:TAURI_PRIVATE_KEY = [Convert]::ToBase64String($bytes)
+            # Already raw minisign format — write as-is
+            $content = $raw -replace "`r`n", "`n" -replace "`r", "`n"
+            [System.IO.File]::WriteAllText($keyFile, $content, [System.Text.Encoding]::ASCII)
           } else {
-            $env:TAURI_PRIVATE_KEY = ($raw -split '\s+' -join '')
+            # Base64-encoded — decode to get raw minisign text, then write
+            $stripped = $raw -replace '\s+', ''
+            $decoded  = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($stripped))
+            [System.IO.File]::WriteAllText($keyFile, $decoded, [System.Text.Encoding]::ASCII)
           }
+
+          Write-Host "Key file written: $(Test-Path $keyFile)"
+          Write-Host "Key preview: $((Get-Content $keyFile -First 1))"
+
+          # Point Tauri to the file — Tauri v1 reads the file directly if path exists
+          $env:TAURI_PRIVATE_KEY = $keyFile
           $env:TAURI_KEY_PASSWORD = ""
-          Write-Host "Key length: $($env:TAURI_PRIVATE_KEY.Length)"
           npm run tauri build
 
       - name: Create GitHub Release
