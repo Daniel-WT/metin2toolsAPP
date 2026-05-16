@@ -39,27 +39,10 @@ jobs:
         env:
           RAW_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
         run: |
-          $raw = $env:RAW_KEY
-
-          # Normalize to base64 — Tauri v1 always base64-decodes TAURI_PRIVATE_KEY
-          # (whether it comes from env var or from a file it reads via path)
-          if ($raw -match 'untrusted comment') {
-            # Secret is raw minisign format — encode to base64
-            $normalized = $raw -replace "`r`n", "`n" -replace "`r", "`n"
-            $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($normalized))
-          } else {
-            # Secret is already base64 — strip any whitespace
-            $b64 = $raw -replace '\s+', ''
-          }
-
-          Write-Host "b64 length: $($b64.Length)"
-          Write-Host "b64 first 30: $($b64.Substring(0, [Math]::Min(30, $b64.Length)))"
-
-          # Write base64 to file and point TAURI_PRIVATE_KEY to it
-          # Tauri reads file → base64-decodes → gets raw minisign → works
-          $keyFile = "$env:RUNNER_TEMP\tauri_signing.key"
-          [System.IO.File]::WriteAllText($keyFile, $b64, [System.Text.Encoding]::ASCII)
-
+          $b64 = $env:RAW_KEY -replace '\s+', ''
+          $raw = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64))
+          $keyFile = "$env:RUNNER_TEMP\tauri.key"
+          [System.IO.File]::WriteAllText($keyFile, $raw, [System.Text.Encoding]::UTF8)
           $env:TAURI_PRIVATE_KEY = $keyFile
           $env:TAURI_KEY_PASSWORD = ""
           npm run tauri build
