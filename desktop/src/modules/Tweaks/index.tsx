@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { open } from '@tauri-apps/api/dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/api/fs';
 import { invoke } from '@tauri-apps/api/tauri';
-import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X, Sliders } from 'lucide-react';
+import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X, Sliders, Shield } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { register, unregister } from '@tauri-apps/api/globalShortcut';
 
@@ -12,6 +12,9 @@ interface Metin2Win {
   title: string;
   exe: string;
   pid: number;
+  width: number;
+  height: number;
+  created_at: number;
 }
 
 interface Preset {
@@ -60,6 +63,8 @@ const LS_PRESETS        = 'm2tweaks_presets';
 const LS_HIDDEN_DEFAULT = 'm2tweaks_hidden';
 const LS_ORDER          = 'm2tweaks_order';
 const LS_TCP_BINDINGS   = 'm2_tcp_bindings';
+const LS_TCP_WHITELIST  = 'm2_tcp_whitelist';
+const LS_CLOSEALL_BIND  = 'm2_tcp_closeall_bind';
 const LS_GFX_PRESETS    = 'm2tweaks_gfx_presets';
 
 function loadCustomPresets(): Preset[]   { try { return JSON.parse(localStorage.getItem(LS_PRESETS) || '[]'); } catch { return []; } }
@@ -107,6 +112,15 @@ export default function Tweaks() {
   const [closingTcp, setClosingTcp] = useState<string | null>(null);
   const [listeningBind, setListeningBind] = useState<string | null>(null);
   const tcpBindingsRef = useRef<Record<string, string>>({});
+  const [tcpWhitelist, setTcpWhitelist] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(LS_TCP_WHITELIST) || '[]')); } catch { return new Set(); }
+  });
+  const [closeAllBind, setCloseAllBind]           = useState<string | null>(() => localStorage.getItem(LS_CLOSEALL_BIND) || null);
+  const [listeningCloseAll, setListeningCloseAll] = useState(false);
+  const [closingAll, setClosingAll]               = useState(false);
+  const closeAllBindRef  = useRef<string | null>(null);
+  const tcpWhitelistRef  = useRef<Set<string>>(new Set());
+  const m2winsRef        = useRef<Metin2Win[]>([]);
 
   // ── Drag state (pointer-based, same system as Inventory) ──────────────
   const dragIdRef    = useRef<string | null>(null);
@@ -141,6 +155,15 @@ export default function Tweaks() {
   useEffect(() => { presetsRef.current = sortedPresets; });
 
   useEffect(() => { tcpBindingsRef.current = tcpBindings; }, [tcpBindings]);
+  useEffect(() => { closeAllBindRef.current = closeAllBind; }, [closeAllBind]);
+  useEffect(() => { tcpWhitelistRef.current = tcpWhitelist; }, [tcpWhitelist]);
+  useEffect(() => { m2winsRef.current = m2wins; }, [m2wins]);
+
+  // Sync whitelist PIDs to Rust whenever windows list or whitelist changes
+  useEffect(() => {
+    const pids = m2wins.filter(w => tcpWhitelist.has(String(w.pid))).map(w => w.pid);
+    invoke('update_closeall_whitelist', { pids }).catch(() => {});
+  }, [m2wins, tcpWhitelist]);
 
   // Build derived map: hotkey → pidStr[]
   function hotkeyToPids(bindings: Record<string, string>): Record<string, string[]> {
@@ -164,7 +187,6 @@ export default function Tweaks() {
   // Restore global shortcuts on mount
   useEffect(() => {
     const saved = { ...tcpBindingsRef.current };
-    if (Object.keys(saved).length === 0) return;
     const map = hotkeyToPids(saved);
     for (const [hotkey, pids] of Object.entries(map)) {
       if (hotkey === 'Mouse4' || hotkey === 'Mouse5') {
@@ -175,6 +197,21 @@ export default function Tweaks() {
         });
       } else {
         registerHotkey(hotkey, pids).catch(() => {});
+      }
+    }
+    // Restore close-all bind
+    const caHotkey = closeAllBindRef.current;
+    if (caHotkey) {
+      if (caHotkey === 'Mouse4' || caHotkey === 'Mouse5') {
+        const button = caHotkey === 'Mouse4' ? 3 : 4;
+        invoke('register_mouse_closeall', { button }).catch(() => {});
+      } else {
+        register(caHotkey, async () => {
+          const excludePids = m2winsRef.current
+            .filter(w => tcpWhitelistRef.current.has(String(w.pid)))
+            .map(w => w.pid);
+          try { await invoke('close_tcp_all_except', { excludePids }); } catch {}
+        }).catch(() => {});
       }
     }
     return () => {
@@ -192,6 +229,14 @@ export default function Tweaks() {
           unregister(hotkey).catch(() => {});
         }
       });
+      if (caHotkey) {
+        if (caHotkey === 'Mouse4' || caHotkey === 'Mouse5') {
+          const button = caHotkey === 'Mouse4' ? 3 : 4;
+          invoke('unregister_mouse_closeall', { button }).catch(() => {});
+        } else {
+          unregister(caHotkey).catch(() => {});
+        }
+      }
     };
   }, []);
 
@@ -227,6 +272,37 @@ export default function Tweaks() {
       window.removeEventListener('mousedown', onMouse, true);
     };
   }, [listeningBind]);
+
+  // Listen for key or mouse when binding Close All
+  useEffect(() => {
+    if (!listeningCloseAll) return;
+    const onKey = async (e: KeyboardEvent) => {
+      if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
+      if (e.key === 'Escape') { setListeningCloseAll(false); return; }
+      e.preventDefault();
+      const parts: string[] = [];
+      if (e.ctrlKey) parts.push('Ctrl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      let key = e.key;
+      if (/^F\d+$/.test(key)) { /* ok */ }
+      else if (key.length === 1) key = key.toUpperCase();
+      else return;
+      parts.push(key);
+      setListeningCloseAll(false);
+      await doBindCloseAll(parts.join('+'));
+    };
+    const onMouse = async (e: MouseEvent) => {
+      if (e.button === 3) { e.preventDefault(); setListeningCloseAll(false); await doBindCloseAll('Mouse4'); }
+      else if (e.button === 4) { e.preventDefault(); setListeningCloseAll(false); await doBindCloseAll('Mouse5'); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('mousedown', onMouse, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('mousedown', onMouse, true);
+    };
+  }, [listeningCloseAll]);
 
   // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -503,6 +579,78 @@ export default function Tweaks() {
     } finally {
       setClosingTcp(null);
     }
+  }
+
+  async function closeAllTcp() {
+    setClosingAll(true);
+    try {
+      const excludePids = m2winsRef.current
+        .filter(w => tcpWhitelistRef.current.has(String(w.pid)))
+        .map(w => w.pid);
+      const count = await invoke<number>('close_tcp_all_except', { excludePids });
+      showToast(count > 0 ? `TCP inchis (${count} conexiuni)` : 'Nicio conexiune TCP activa gasita.');
+    } catch {
+      showToast('Eroare la inchiderea TCP. Necesita Administrator.', false);
+    } finally {
+      setClosingAll(false);
+    }
+  }
+
+  function toggleWhitelist(pidStr: string) {
+    setTcpWhitelist(prev => {
+      const next = new Set(prev);
+      if (next.has(pidStr)) next.delete(pidStr);
+      else next.add(pidStr);
+      localStorage.setItem(LS_TCP_WHITELIST, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  async function doBindCloseAll(hotkey: string) {
+    const old = closeAllBindRef.current;
+    if (old && old !== hotkey) {
+      if (old === 'Mouse4' || old === 'Mouse5') {
+        const button = old === 'Mouse4' ? 3 : 4;
+        try { await invoke('unregister_mouse_closeall', { button }); } catch {}
+      } else {
+        try { await unregister(old); } catch {}
+      }
+    }
+    try {
+      if (hotkey === 'Mouse4' || hotkey === 'Mouse5') {
+        const button = hotkey === 'Mouse4' ? 3 : 4;
+        await invoke('register_mouse_closeall', { button });
+      } else {
+        await register(hotkey, async () => {
+          const excludePids = m2winsRef.current
+            .filter(w => tcpWhitelistRef.current.has(String(w.pid)))
+            .map(w => w.pid);
+          try { await invoke('close_tcp_all_except', { excludePids }); } catch {}
+        });
+      }
+      setCloseAllBind(hotkey);
+      closeAllBindRef.current = hotkey;
+      localStorage.setItem(LS_CLOSEALL_BIND, hotkey);
+      showToast(`Bind Close All setat: ${hotkey}`);
+    } catch {
+      showToast(`Shortcut-ul "${hotkey}" nu poate fi inregistrat.`, false);
+    }
+  }
+
+  async function doUnbindCloseAll() {
+    const hotkey = closeAllBindRef.current;
+    if (hotkey) {
+      if (hotkey === 'Mouse4' || hotkey === 'Mouse5') {
+        const button = hotkey === 'Mouse4' ? 3 : 4;
+        try { await invoke('unregister_mouse_closeall', { button }); } catch {}
+      } else {
+        try { await unregister(hotkey); } catch {}
+      }
+    }
+    setCloseAllBind(null);
+    closeAllBindRef.current = null;
+    localStorage.removeItem(LS_CLOSEALL_BIND);
+    showToast('Bind Close All sters.');
   }
 
   function handleReorder(fromId: string, targetId: string) {
@@ -973,6 +1121,9 @@ export default function Tweaks() {
                   <div className="flex items-center gap-2 mb-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">{w.exe}</p>
                     <span className="text-[9px] font-bold text-slate-700 font-display">PID {w.pid}</span>
+                    {w.width > 0 && w.height > 0 && (
+                      <span className="text-[9px] font-bold text-slate-600 font-display">{w.width}×{w.height}</span>
+                    )}
                   </div>
                   <input
                     type="text"
@@ -1007,6 +1158,53 @@ export default function Tweaks() {
           </div>
         </div>
 
+        {/* ── Close All row ── */}
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/5 border border-red-500/15">
+          <div className="shrink-0 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+            <WifiOff className="w-4 h-4 text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-100">Close All</p>
+            <p className="text-[10px] text-slate-500">Inchide toate conexiunile Metin2, mai putin cele cu scut activat.</p>
+          </div>
+          {/* Bind button */}
+          {closeAllBind ? (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="px-2 py-1 rounded-lg bg-accent-gold/10 border border-accent-gold/20 text-accent-gold text-xs font-bold font-display">
+                {closeAllBind}
+              </span>
+              <button
+                onClick={doUnbindCloseAll}
+                className="w-6 h-6 flex items-center justify-center rounded-md text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                title="Sterge bind"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ) : listeningCloseAll ? (
+            <span className="shrink-0 px-3 py-1.5 rounded-lg bg-accent-gold/5 border border-accent-gold/30 text-accent-gold text-xs font-medium animate-pulse">
+              Tasta sau Mouse4/5...
+            </span>
+          ) : (
+            <button
+              onClick={() => setListeningCloseAll(true)}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.07] text-slate-400 text-xs font-medium hover:bg-white/[0.06] hover:text-slate-200 transition-all"
+            >
+              <Key className="w-3 h-3" />
+              Bind
+            </button>
+          )}
+          {/* Execute button */}
+          <button
+            onClick={closeAllTcp}
+            disabled={closingAll}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-black uppercase tracking-wider hover:bg-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+          >
+            <WifiOff className="w-3 h-3" />
+            {closingAll ? '...' : 'All'}
+          </button>
+        </div>
+
         {m2wins.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8 border border-dashed border-white/5 rounded-xl">
             <WifiOff className="w-8 h-8 text-slate-700" />
@@ -1018,8 +1216,14 @@ export default function Tweaks() {
               const pidStr = String(w.pid);
               const bound = tcpBindings[pidStr];
               const isListening = listeningBind === pidStr;
+              const whitelisted = tcpWhitelist.has(pidStr);
               return (
-                <div key={w.pid} className="flex items-center gap-3 p-3 rounded-xl bg-bg-secondary border border-white/5 hover:border-white/10 transition-colors">
+                <div key={w.pid} className={cn(
+                  'flex items-center gap-3 p-3 rounded-xl border transition-colors',
+                  whitelisted
+                    ? 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/30'
+                    : 'bg-bg-secondary border-white/5 hover:border-white/10'
+                )}>
                   {/* PID badge */}
                   <div className="shrink-0 px-2.5 py-1.5 rounded-lg bg-white/[0.03] border border-white/5 text-center min-w-[60px]">
                     <p className="text-[9px] font-black uppercase tracking-widest text-slate-600">PID</p>
@@ -1031,6 +1235,20 @@ export default function Tweaks() {
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">{w.exe}</p>
                     <p className="text-xs text-slate-400 truncate">{w.title}</p>
                   </div>
+
+                  {/* Whitelist shield */}
+                  <button
+                    onClick={() => toggleWhitelist(pidStr)}
+                    title={whitelisted ? 'Scoate din whitelist' : 'Adauga in whitelist (protejat de Close All)'}
+                    className={cn(
+                      'shrink-0 w-7 h-7 flex items-center justify-center rounded-lg border transition-all',
+                      whitelisted
+                        ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
+                        : 'bg-white/[0.03] border-white/[0.07] text-slate-600 hover:text-slate-300 hover:bg-white/[0.06]'
+                    )}
+                  >
+                    <Shield className="w-3.5 h-3.5" />
+                  </button>
 
                   {/* Hotkey bind */}
                   {bound ? (

@@ -5,19 +5,21 @@ use std::collections::{HashSet, HashMap};
 use std::ffi::{OsStr, OsString};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::sync::{Mutex, OnceLock, Once};
-use winapi::shared::minwindef::{BOOL, DWORD, FALSE, LPARAM, LRESULT, WPARAM};
-use winapi::shared::windef::HWND;
+use winapi::shared::minwindef::{BOOL, DWORD, FALSE, FILETIME, LPARAM, LRESULT, WPARAM};
+use winapi::shared::windef::{HWND, RECT};
 use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
 use winapi::um::tlhelp32::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
 use winapi::um::winuser::{
-    CallNextHookEx, EnumWindows, GetMessageW, GetWindowTextW, GetWindowThreadProcessId,
-    IsWindowVisible, MSLLHOOKSTRUCT, MSG, SetWindowsHookExW, SetWindowTextW, UnhookWindowsHookEx,
-    WH_MOUSE_LL, WM_XBUTTONDOWN,
+    CallNextHookEx, EnumWindows, GetClientRect, GetMessageW, GetWindowTextW,
+    GetWindowThreadProcessId, IsWindowVisible, MSLLHOOKSTRUCT, MSG, SetWindowsHookExW,
+    SetWindowTextW, UnhookWindowsHookEx, WH_MOUSE_LL, WM_XBUTTONDOWN,
 };
 use winapi::um::iphlpapi::{GetExtendedTcpTable, SetTcpEntry};
 use winapi::shared::tcpmib::{MIB_TCP_STATE_DELETE_TCB, MIB_TCPROW};
+use winapi::um::processthreadsapi::{GetProcessTimes, OpenProcess};
+use winapi::um::winnt::PROCESS_QUERY_LIMITED_INFORMATION;
 
 #[derive(Serialize, Clone)]
 struct Metin2Window {
@@ -25,6 +27,9 @@ struct Metin2Window {
     title: String,
     exe: String,
     pid: u32,
+    width: u32,
+    height: u32,
+    created_at: u64,
 }
 
 fn wide_str(s: &str) -> Vec<u16> {
@@ -54,9 +59,17 @@ struct TcpTableOwnerPid {
 
 static MOUSE_BINDINGS: OnceLock<Mutex<HashMap<u8, Vec<u32>>>> = OnceLock::new();
 static MOUSE_HOOK_STARTED: Once = Once::new();
+// Whitelist of PIDs excluded from the "close all" mouse action
+static CLOSEALL_WHITELIST: OnceLock<Mutex<Vec<u32>>> = OnceLock::new();
+// Sentinel PID meaning "close all metin2 processes (except whitelist)"
+const CLOSEALL_PID: u32 = u32::MAX;
 
 fn get_mouse_bindings() -> &'static Mutex<HashMap<u8, Vec<u32>>> {
     MOUSE_BINDINGS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn get_closeall_whitelist() -> &'static Mutex<Vec<u32>> {
+    CLOSEALL_WHITELIST.get_or_init(|| Mutex::new(Vec::new()))
 }
 
 // ── TCP close shared logic ────────────────────────────────────────────────────
@@ -119,7 +132,25 @@ unsafe extern "system" fn mouse_hook_proc(code: i32, wparam: WPARAM, lparam: LPA
                 .map(|b| b.get(&btn).cloned().unwrap_or_default())
                 .unwrap_or_default();
             if !pids.is_empty() {
-                std::thread::spawn(move || { for pid in pids { close_tcp_inner(pid); } });
+                let has_closeall = pids.contains(&CLOSEALL_PID);
+                let regular: Vec<u32> = pids.into_iter().filter(|&p| p != CLOSEALL_PID).collect();
+                let whitelist: Vec<u32> = if has_closeall {
+                    get_closeall_whitelist()
+                        .lock()
+                        .ok()
+                        .map(|w| w.clone())
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+                std::thread::spawn(move || {
+                    for pid in regular { close_tcp_inner(pid); }
+                    if has_closeall {
+                        for pid in metin2_pids() {
+                            if !whitelist.contains(&pid) { close_tcp_inner(pid); }
+                        }
+                    }
+                });
             }
         }
     }
@@ -206,11 +237,19 @@ unsafe extern "system" fn enum_cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
         .to_string_lossy()
         .into_owned();
 
+    let mut rect: RECT = std::mem::zeroed();
+    GetClientRect(hwnd, &mut rect);
+    let width  = (rect.right  - rect.left).max(0) as u32;
+    let height = (rect.bottom - rect.top ).max(0) as u32;
+
     data.results.push(Metin2Window {
         hwnd: format!("{}", hwnd as u64),
         title,
         exe: String::from("Metin2Client.exe"),
         pid,
+        width,
+        height,
+        created_at: 0,
     });
 
     1
@@ -226,7 +265,21 @@ fn list_metin2_windows() -> Vec<Metin2Window> {
     };
     unsafe {
         EnumWindows(Some(enum_cb), &mut data as *mut _ as LPARAM);
+
+        // Fill created_at for each window via GetProcessTimes
+        for w in &mut data.results {
+            let hproc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, w.pid);
+            if hproc.is_null() { continue; }
+            let mut creation: FILETIME = std::mem::zeroed();
+            let mut dummy:    FILETIME = std::mem::zeroed();
+            if GetProcessTimes(hproc, &mut creation, &mut dummy, &mut dummy, &mut dummy) != 0 {
+                w.created_at = ((creation.dwHighDateTime as u64) << 32) | (creation.dwLowDateTime as u64);
+            }
+            CloseHandle(hproc);
+        }
     }
+    // Most recently opened first
+    data.results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
     data.results
 }
 
@@ -328,6 +381,45 @@ fn close_tcp_for_pid(pid: u32) -> Result<u32, String> {
 }
 
 #[tauri::command]
+fn close_tcp_all_except(exclude_pids: Vec<u32>) -> u32 {
+    let mut total = 0u32;
+    for pid in metin2_pids() {
+        if !exclude_pids.contains(&pid) {
+            total += close_tcp_inner(pid);
+        }
+    }
+    total
+}
+
+#[tauri::command]
+fn register_mouse_closeall(button: u8) {
+    if let Ok(mut bindings) = get_mouse_bindings().lock() {
+        let entry = bindings.entry(button).or_insert_with(Vec::new);
+        if !entry.contains(&CLOSEALL_PID) {
+            entry.push(CLOSEALL_PID);
+        }
+    }
+    ensure_mouse_hook();
+}
+
+#[tauri::command]
+fn unregister_mouse_closeall(button: u8) {
+    if let Ok(mut bindings) = get_mouse_bindings().lock() {
+        if let Some(pids) = bindings.get_mut(&button) {
+            pids.retain(|&p| p != CLOSEALL_PID);
+            if pids.is_empty() { bindings.remove(&button); }
+        }
+    }
+}
+
+#[tauri::command]
+fn update_closeall_whitelist(pids: Vec<u32>) {
+    if let Ok(mut whitelist) = get_closeall_whitelist().lock() {
+        *whitelist = pids;
+    }
+}
+
+#[tauri::command]
 fn register_mouse_bind(button: u8, pid: u32) {
     if let Ok(mut bindings) = get_mouse_bindings().lock() {
         let entry = bindings.entry(button).or_insert_with(Vec::new);
@@ -360,8 +452,12 @@ fn main() {
             is_admin,
             relaunch_as_admin,
             close_tcp_for_pid,
+            close_tcp_all_except,
             register_mouse_bind,
             unregister_mouse_bind,
+            register_mouse_closeall,
+            unregister_mouse_closeall,
+            update_closeall_whitelist,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
