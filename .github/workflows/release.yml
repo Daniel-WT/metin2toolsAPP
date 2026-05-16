@@ -40,24 +40,26 @@ jobs:
           RAW_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
         run: |
           $raw = $env:RAW_KEY
-          $keyFile = "$env:RUNNER_TEMP\tauri_signing.key"
 
-          # Detect format and write raw minisign text to temp file
+          # Normalize to base64 — Tauri v1 always base64-decodes TAURI_PRIVATE_KEY
+          # (whether it comes from env var or from a file it reads via path)
           if ($raw -match 'untrusted comment') {
-            # Already raw minisign format — write as-is
-            $content = $raw -replace "`r`n", "`n" -replace "`r", "`n"
-            [System.IO.File]::WriteAllText($keyFile, $content, [System.Text.Encoding]::ASCII)
+            # Secret is raw minisign format — encode to base64
+            $normalized = $raw -replace "`r`n", "`n" -replace "`r", "`n"
+            $b64 = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($normalized))
           } else {
-            # Base64-encoded — decode to get raw minisign text, then write
-            $stripped = $raw -replace '\s+', ''
-            $decoded  = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($stripped))
-            [System.IO.File]::WriteAllText($keyFile, $decoded, [System.Text.Encoding]::ASCII)
+            # Secret is already base64 — strip any whitespace
+            $b64 = $raw -replace '\s+', ''
           }
 
-          Write-Host "Key file written: $(Test-Path $keyFile)"
-          Write-Host "Key preview: $((Get-Content $keyFile -First 1))"
+          Write-Host "b64 length: $($b64.Length)"
+          Write-Host "b64 first 30: $($b64.Substring(0, [Math]::Min(30, $b64.Length)))"
 
-          # Point Tauri to the file — Tauri v1 reads the file directly if path exists
+          # Write base64 to file and point TAURI_PRIVATE_KEY to it
+          # Tauri reads file → base64-decodes → gets raw minisign → works
+          $keyFile = "$env:RUNNER_TEMP\tauri_signing.key"
+          [System.IO.File]::WriteAllText($keyFile, $b64, [System.Text.Encoding]::ASCII)
+
           $env:TAURI_PRIVATE_KEY = $keyFile
           $env:TAURI_KEY_PASSWORD = ""
           npm run tauri build
