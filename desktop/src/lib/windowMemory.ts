@@ -23,8 +23,10 @@ export function savedWindowOptions(key: string): { x?: number; y?: number; width
 }
 
 // Hook: saves position+size on every move/resize
-export function useWindowMemory(key: string) {
+// enabled: pass false when the component is rendered in a non-popout context
+export function useWindowMemory(key: string, enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     const save = async () => {
       try {
         const factor = await appWindow.scaleFactor();
@@ -46,5 +48,5 @@ export function useWindowMemory(key: string) {
       unlistenMove.then(f => f());
       unlistenResize.then(f => f());
     };
-  }, [key]);
+  }, [key, enabled]);
 }

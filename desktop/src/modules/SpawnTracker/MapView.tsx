@@ -9,15 +9,19 @@ import { appWindow } from '@tauri-apps/api/window';
 import { useWindowMemory } from '../../lib/windowMemory';
 
 export function MapView() {
-  const { spawnData, activeCH, setActiveCH, setMapDot, updateSpawnTime, setNotFound, clearCH, removePin } = useSpawn();
+  const { spawnData, activeCH, setActiveCH, setMapDot, updateSpawnTime, setNotFound, clearCH, removePin, toggleGenFals } = useSpawn();
   const mapRef = useRef<HTMLImageElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [popover, setPopover] = useState<{x: number, y: number, roomId: string, roomLabel: string, type: 'sef' | 'gen'} | null>(null);
+  const [genFalsPopover, setGenFalsPopover] = useState<{x: number, y: number, roomId: string} | null>(null);
+  const genFalsPopoverRef = useRef<HTMLDivElement>(null);
   
   const isPopout = window.location.search.includes('view=map');
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
   const [showOnFeedback, setShowOnFeedback] = useState(false);
-  useWindowMemory('map-popout');
+  const [showOffFeedback, setShowOffFeedback] = useState(false);
+
+  useWindowMemory('map-popout', isPopout);
 
   useEffect(() => {
     if (isPopout) {
@@ -46,13 +50,19 @@ export function MapView() {
   };
 
   const handleRoomAction = (roomId: string, label: string, e: React.MouseEvent, type: 'sef' | 'gen') => {
+    setGenFalsPopover(null);
     setPopover({ x: e.clientX, y: e.clientY, roomId, roomLabel: label, type });
   };
 
+  const handleGenFalsToggle = (roomId: string, e: React.MouseEvent) => {
+    setPopover(null);
+    setGenFalsPopover({ x: e.clientX, y: e.clientY, roomId });
+  };
+
   return (
-    <div 
+    <div
       className={cn(
-        "relative mx-auto aspect-square rounded-3xl overflow-hidden border border-white/5 bg-black/20 group/map max-w-full max-h-full",
+        "relative mx-auto aspect-square rounded-3xl overflow-hidden border border-white/5 bg-black/20 group/map max-w-full max-h-full select-none",
         activeCH !== null ? "cursor-crosshair" : "cursor-default",
         isPopout && "rounded-none h-screen w-screen border-none"
       )}
@@ -67,6 +77,9 @@ export function MapView() {
           if (next) {
             setShowOnFeedback(true);
             setTimeout(() => setShowOnFeedback(false), 2000);
+          } else {
+            setShowOffFeedback(true);
+            setTimeout(() => setShowOffFeedback(false), 2000);
           }
         } else {
           e.preventDefault();
@@ -81,7 +94,7 @@ export function MapView() {
           {/* Status Overlays */}
           <div className={cn(
             "absolute top-4 left-1/2 -translate-x-1/2 z-[100] px-3 py-1 bg-accent-gold/20 border border-accent-gold/40 rounded-full text-[10px] font-black uppercase tracking-widest text-accent-gold transition-all duration-500 pointer-events-none",
-            isAlwaysOnTop ? "opacity-0 scale-95" : "opacity-100 scale-100"
+            showOffFeedback ? "opacity-100 scale-100" : "opacity-0 scale-95"
           )}>
             Always on Top: OFF
           </div>
@@ -107,17 +120,14 @@ export function MapView() {
           isPopout && "p-0 pointer-events-none z-20"
         )}
       >
-        <div 
-          className={cn(
-            "relative transition-transform duration-200 ease-out origin-center",
-            isPopout && "z-20"
-          )}
-          style={{ 
-            width: '100%', 
-            height: '100%', 
-            maxWidth: 'min(100%, 100vh)', 
+        <div
+          className={cn("relative origin-center", isPopout && "z-20")}
+          style={{
+            width: '100%',
+            height: '100%',
+            maxWidth: 'min(100%, 100vh)',
             maxHeight: 'min(100%, 100vw)',
-            aspectRatio: '1 / 1'
+            aspectRatio: '1 / 1',
           }}
         >
           <img 
@@ -125,14 +135,14 @@ export function MapView() {
             src="/map.png" 
             alt="Metin2 Map" 
             className={cn(
-              "absolute inset-0 w-full h-full object-cover rounded-2xl shadow-2xl opacity-80 group-hover/map:opacity-100 transition-opacity",
+              "absolute inset-0 w-full h-full object-cover rounded-2xl shadow-2xl opacity-80",
               (activeCH !== null || !isPopout) ? "pointer-events-auto" : "pointer-events-none"
             )} 
           />
 
           <div className="absolute inset-0">
             {INITIAL_ROOMS.map(([id, label, x, y, isSpawn, w, h]) => (
-              <div key={id as string} className="pointer-events-auto absolute" style={{ left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`, transform: 'translate(-50%, -50%)' }}>
+              <div key={id as string} className={cn("absolute", (isSpawn as boolean) ? "pointer-events-auto" : "pointer-events-none")} style={{ left: `${x}%`, top: `${y}%`, width: `${w}%`, height: `${h}%`, transform: 'translate(-50%, -50%)' }}>
                 <RoomIndicator 
                   id={id as string}
                   label={label as string}
@@ -144,6 +154,7 @@ export function MapView() {
                   roomChannels={spawnData?.rooms?.[id as string]}
                   genFals={spawnData?.genFals}
                   onAction={handleRoomAction}
+                  onGenFalsToggle={handleGenFalsToggle}
                 />
               </div>
             ))}
@@ -203,10 +214,15 @@ export function MapView() {
         </div>
       </div>
 
+      {/* Popover backdrop — needed in popout because data-tauri-drag-region consumes mousedown */}
+      {popover && (
+        <div className="fixed inset-0 z-[99]" onClick={() => setPopover(null)} />
+      )}
+
       {/* Popover */}
       {popover && (
-        <div 
-          ref={popoverRef} 
+        <div
+          ref={popoverRef}
           className="fixed z-[100] w-48 p-3 shadow-2xl rounded-2xl animate-in zoom-in-95 duration-200 pointer-events-auto" 
           style={{ 
             left: Math.min(popover.x + 10, window.innerWidth - 200), 
@@ -260,26 +276,78 @@ export function MapView() {
                   if (chs?.[`ch${ch}`]) chNotations.push(rid);
                 });
               }
-              
+
               const hasSefAnywhere = chNotations.some(rid => spawnData?.rooms?.[rid]?.[`ch${ch}`]?.type === 'sef');
               const isNotedInRegular = chNotations.some(rid => rid !== '18' && rid !== 'F' && rid !== '_nf');
               const alreadyNotedInThisRoom = chNotations.includes(popover.roomId);
-              
-              // Lock if it's a Sef (confirmed anywhere) 
-              // OR if it's already in a regular room 
-              // OR if it's already in THIS room
               const isLocked = hasSefAnywhere || isNotedInRegular || alreadyNotedInThisRoom;
 
+              // Detectam suprascriere gen fals: CH are gen in 18 sau F, si notam in alta camera
+              const genFalsRoom = chNotations.find(rid =>
+                (rid === '18' || rid === 'F') && spawnData?.rooms?.[rid]?.[`ch${ch}`]?.type === 'gen'
+              );
+              const isRegularTarget = popover.roomId !== '18' && popover.roomId !== 'F' && popover.roomId !== '_nf';
+              const willAutoGenFals = !isLocked && !!genFalsRoom && isRegularTarget;
+
               return (
-                <button 
-                  key={ch} 
+                <button
+                  key={ch}
                   disabled={isLocked}
-                  onClick={() => { if (!isLocked) { updateSpawnTime(popover.type, ch, popover.roomId, new Date().toISOString()); setPopover(null); } }} 
+                  onClick={() => { if (!isLocked) { updateSpawnTime(popover.type, ch, popover.roomId, new Date().toISOString()); setPopover(null); } }}
                   onContextMenu={(e) => { e.preventDefault(); if (!isLocked) { setNotFound(ch); setPopover(null); } }}
                   className={cn(
                     "py-1.5 rounded-lg text-[10px] font-black border transition-all",
-                    isLocked 
-                      ? "opacity-20 cursor-not-allowed grayscale border-white/5 bg-black/40 text-slate-600" 
+                    isLocked
+                      ? "opacity-20 cursor-not-allowed grayscale border-white/5 bg-black/40 text-slate-600"
+                      : willAutoGenFals
+                        ? "text-amber-400 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/15 hover:text-amber-300 hover:border-amber-500/50"
+                        : "text-slate-400 border-white/5 bg-white/[0.02] hover:bg-white/10 hover:text-white hover:border-white/10"
+                  )}
+                >
+                  CH{ch}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Gen Fals Popover backdrop */}
+      {genFalsPopover && (
+        <div className="fixed inset-0 z-[99]" onClick={() => setGenFalsPopover(null)} />
+      )}
+
+      {/* Gen Fals Popover */}
+      {genFalsPopover && (
+        <div
+          ref={genFalsPopoverRef}
+          className="fixed z-[100] w-48 p-3 shadow-2xl rounded-2xl animate-in zoom-in-95 duration-200 pointer-events-auto"
+          style={{
+            left: Math.min(genFalsPopover.x + 10, window.innerWidth - 200),
+            top: Math.min(genFalsPopover.y + 10, window.innerHeight - 200),
+            background: 'rgba(15,16,20,0.92)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            backdropFilter: 'blur(16px)'
+          }}
+        >
+          <div className="text-center mb-3">
+            <p className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Camera {genFalsPopover.roomId}</p>
+            <span className="font-black uppercase text-[10px] tracking-widest text-red-400">
+              Gen Fals
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {[1, 2, 3, 4, 5, 6].map(ch => {
+              const gfKey = genFalsPopover.roomId === '18' ? 'gf18' : 'gfF';
+              const isActive = !!spawnData?.genFals?.[`ch${ch}`]?.[gfKey];
+              return (
+                <button
+                  key={ch}
+                  onClick={() => { toggleGenFals(ch, genFalsPopover.roomId); setGenFalsPopover(null); }}
+                  className={cn(
+                    "py-1.5 rounded-lg text-[10px] font-black border transition-all",
+                    isActive
+                      ? "text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20 hover:border-red-500/50"
                       : "text-slate-400 border-white/5 bg-white/[0.02] hover:bg-white/10 hover:text-white hover:border-white/10"
                   )}
                 >
@@ -293,8 +361,8 @@ export function MapView() {
 
       {/* CH Selection Header */}
       <div className={cn(
-        "absolute top-3 left-3 p-2 bg-black/60 backdrop-blur-md rounded-xl border border-white/10 flex gap-2 z-20",
-        isPopout && "pointer-events-auto"
+        "absolute top-3 left-3 flex z-20",
+        isPopout ? "gap-1 pointer-events-auto" : "gap-2"
       )}>
         {[1, 2, 3, 4, 5, 6].map(ch => {
           let isFound = false, isNotFound = false;
@@ -305,18 +373,19 @@ export function MapView() {
           if (spawnData?.pins?.[`ch${ch}`]?.x) isFound = true;
 
           return (
-            <button 
-              key={ch} 
+            <button
+              key={ch}
               onClick={(e) => { e.stopPropagation(); if (isNotFound) clearCH(ch); else setNotFound(ch); }}
               className={cn(
-                "w-7 h-7 rounded-lg border flex items-center justify-center text-[10px] font-black transition-all",
+                "rounded-lg border flex items-center justify-center font-black transition-all",
+                isPopout ? "w-5 h-5 text-[8px]" : "w-7 h-7 text-[10px]",
                 isNotFound || isFound
                   ? "opacity-50 border-white/10 bg-white/5 text-slate-400"
                   : "border-accent-gold/30 bg-accent-gold/5 text-accent-gold hover:border-accent-gold hover:scale-110"
               )}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setActiveCH(activeCH === ch ? null : ch); }}
             >
-              CH{ch}
+              {isPopout ? ch : `CH${ch}`}
             </button>
           );
         })}

@@ -443,7 +443,48 @@ fn unregister_mouse_bind(button: u8, pid: u32) {
 }
 
 fn main() {
+    use tauri::{CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu};
+
+    let tray_menu = SystemTrayMenu::new()
+        .add_item(CustomMenuItem::new("show", "Deschide"))
+        .add_item(CustomMenuItem::new("exit", "Ieși"));
+
     tauri::Builder::default()
+        .system_tray(
+            SystemTray::new()
+                .with_menu(tray_menu)
+                .with_tooltip("Metin2 Tools"),
+        )
+        .on_system_tray_event(|app, event| match event {
+            SystemTrayEvent::LeftClick { .. } => {
+                if let Some(win) = app.get_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            }
+            SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+                "show" => {
+                    if let Some(win) = app.get_window("main") {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                    }
+                }
+                "exit" => {
+                    app.exit(0);
+                }
+                _ => {}
+            },
+            _ => {}
+        })
+        .on_window_event(|event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event.event() {
+                // Fereastra principala se ascunde in tray; pop-out-urile se inchid normal
+                if event.window().label() == "main" {
+                    api.prevent_close();
+                    let _ = event.window().hide();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             list_metin2_windows,

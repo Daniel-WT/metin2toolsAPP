@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { db } from '../lib/firebase';
-import { ref, onValue, set, push, get, update } from 'firebase/database';
+import { ref, onValue, set, push, get, update, runTransaction } from 'firebase/database';
 import { useAuth } from './AuthContext';
 import { WebviewWindow, getCurrent } from '@tauri-apps/api/window';
 import { emit, listen } from '@tauri-apps/api/event';
@@ -22,7 +22,11 @@ interface SpawnData {
   gheata?: Record<string, Record<string, any>>;
   spawnType?: 'simplu' | 'dublu';
   evenHourType?: 'simplu' | 'dublu';
+  parityRule?: { settledHour: number; settledType: 'simplu' | 'dublu' };
+  anchor?: { ts: number; type: 'simplu' | 'dublu'; intervalMs: number };
   chBeaten?: Record<string, boolean>;
+  _prevSpawnType?: string;
+  _resetAt?: number;
 }
 
 interface SpawnContextType {
@@ -230,8 +234,13 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [basePath, teamId]);
 
   const firedAlertsRef = useRef<Set<string>>(new Set());
-  const preClearedRef = useRef<Set<string>>(new Set());
   const clearAllRoomsRef = useRef<(() => void) | null>(null);
+  const chTimeSetCooldownRef = useRef<number>(0);
+  const ch1OrganicNearZeroAtRef = useRef<number | null>(null);
+  const prevCh1DiffRef = useRef<number | null>(null);
+  const prevCh1ValRef = useRef<string | null | undefined>(undefined);
+  const spawnResetPendingRef = useRef<{ clearKey: string; blockedAt: number } | null>(null);
+  const clearSpawnForRespawnRef = useRef<((cycleKey: string) => void) | null>(null);
 
   const stopSpawnAlarm = useCallback(() => {
     if (soundLoopRef.current) {
@@ -373,25 +382,63 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
     });
 
-    // Auto-clear tabel cu 5 minute inainte de spawn CH1
+    // T=0 detection for CH1 — fire reset via Firebase transaction (same dedup as web)
     const ch1Val = spawnData.chTimes?.['ch1'];
     if (ch1Val) {
       const ch1Parts = ch1Val.split(':').map((n: string) => parseInt(n, 10));
       if (ch1Parts.length === 2 && !isNaN(ch1Parts[0]) && !isNaN(ch1Parts[1])) {
         let ch1Diff = (ch1Parts[0] * 60 + ch1Parts[1]) - nowInHour;
         if (ch1Diff <= 0) ch1Diff += 3600;
-        const preCycleKey = `${ch1Val}_h${currentHour}_pre5`;
-        if (ch1Diff <= 300 && ch1Diff > 0 && !preClearedRef.current.has(preCycleKey)) {
-          preClearedRef.current.add(preCycleKey);
-          clearAllRoomsRef.current?.();
+
+        const isCooldownActive = (Date.now() - chTimeSetCooldownRef.current) < 60000;
+
+        // Organic near-zero tracking (only when cooldown inactive)
+        if (ch1Diff <= 10 && !isCooldownActive) {
+          ch1OrganicNearZeroAtRef.current = Date.now();
         }
+
+        // Wrap detection: prev diff was small, now large → spawn just fired
+        const prevDiff = prevCh1DiffRef.current;
+        const ch1Wrapped = prevDiff !== null && prevDiff <= 300 && ch1Diff >= 3300;
+        prevCh1DiffRef.current = ch1Diff;
+
+        if (ch1Diff >= 3590 || ch1Wrapped) {
+          const clearKey = `${ch1Val}_h${currentHour}`;
+          const cooldownOk = !isCooldownActive;
+          const organicSpawn = ch1OrganicNearZeroAtRef.current !== null &&
+            (Date.now() - ch1OrganicNearZeroAtRef.current) < 120000;
+
+          if (!firedAlertsRef.current.has(clearKey + '_reset')) {
+            if (cooldownOk || organicSpawn) {
+              firedAlertsRef.current.add(clearKey + '_reset');
+              spawnResetPendingRef.current = null;
+              clearSpawnForRespawnRef.current?.(clearKey);
+            } else if (!ch1Wrapped) {
+              // Defer until cooldown expires
+              if (!spawnResetPendingRef.current) {
+                spawnResetPendingRef.current = { clearKey, blockedAt: Date.now() };
+              }
+            }
+          }
+        }
+
+        // Process deferred reset
+        const pending = spawnResetPendingRef.current;
+        if (pending && (Date.now() - chTimeSetCooldownRef.current) > 60000) {
+          spawnResetPendingRef.current = null;
+          if (!firedAlertsRef.current.has(pending.clearKey + '_reset') &&
+              (Date.now() - pending.blockedAt) < 300000) {
+            firedAlertsRef.current.add(pending.clearKey + '_reset');
+            clearSpawnForRespawnRef.current?.(pending.clearKey);
+          }
+        }
+
       }
     }
 
     // Reset dedup set at each new hour
     if (now.getMinutes() === 0 && now.getSeconds() === 0) {
       firedAlertsRef.current.clear();
-      preClearedRef.current.clear();
     }
   }, [spawnData?.chTimes, playSpawnAlarm, serverTimeOffset]);
 
@@ -399,6 +446,19 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const inv = setInterval(checkAlarms, 1000);
     return () => clearInterval(inv);
   }, [checkAlarms]);
+
+  // Guard against false resets when CH1 is changed externally (web app / other client)
+  useEffect(() => {
+    const ch1 = spawnData?.chTimes?.ch1 ?? null;
+    if (prevCh1ValRef.current === undefined) {
+      prevCh1ValRef.current = ch1; // initial load — don't trigger cooldown
+      return;
+    }
+    if (ch1 !== prevCh1ValRef.current) {
+      chTimeSetCooldownRef.current = Date.now();
+      prevCh1ValRef.current = ch1;
+    }
+  }, [spawnData?.chTimes?.ch1]);
 
   // Repeat urgent alarm every 4 seconds while 30s alerts are active
   useEffect(() => {
@@ -447,17 +507,20 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }).catch(e => console.error("Activity Log Error:", e));
   }, [teamId, user]);
 
-  const logTypeChange = useCallback((from: string, to: string) => {
+  const logTypeChange = useCallback((from: string, to: string, reason?: string) => {
     if (!teamId) return;
+    const localNow = new Date();
     const historyPath = `teams/${teamId}/spawn/typeHistory`;
     const newLogRef = push(ref(db, historyPath));
     set(newLogRef, {
       ts: Date.now(),
       from,
       to,
-      reason: 'auto-switch'
+      reason: reason || 'auto-switch',
+      hourLocal: localNow.getHours(),
+      userName: user?.name || (user?.email ? user.email.split('@')[0] : 'Anonim')
     });
-  }, [teamId]);
+  }, [teamId, user]);
 
   const undo = useCallback(() => {
     if (undoStack.current.length === 0) return;
@@ -469,15 +532,23 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateSpawnTime = useCallback((type: 'sef' | 'gen', ch: number, roomId: string, time: string) => {
     pushUndo(`CH${ch} ${type}`);
     const updates: Record<string, any> = {};
-    if (spawnData?.entries) {
-      const oldEntry = spawnData.entries[String(ch)];
-      if (oldEntry && oldEntry.room !== roomId) {
-        updates[`entries/${ch}`] = null;
-      }
+    const oldEntry = spawnData?.entries?.[String(ch)];
+    // Clear old room if changing rooms
+    if (oldEntry?.room && oldEntry.room !== roomId) {
+      updates[`rooms/${oldEntry.room}/ch${ch}`] = null;
     }
+    // Auto gen fals: daca se suprascrie un GEN din camera 18 sau F cu ceva dintr-o camera normala
+    const isMovingToRegular = roomId !== '18' && roomId !== 'F' && roomId !== '_nf';
+    if (oldEntry?.type === 'gen' && (oldEntry.room === '18' || oldEntry.room === 'F') && isMovingToRegular) {
+      const key = oldEntry.room === '18' ? 'gf18' : 'gfF';
+      updates[`genFals/ch${ch}/${key}`] = true;
+      updates[`gheata/ch${ch}/${key}`] = true;
+    }
+    // Write to both entries (web compat) and rooms (desktop UI source of truth)
     updates[`entries/${ch}`] = { room: roomId, type, dead: false };
+    updates[`rooms/${roomId}/ch${ch}`] = { type, dead: false };
     update(ref(db, basePath), updates);
-    const displayTime = time.includes('T') 
+    const displayTime = time.includes('T')
       ? new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       : time;
     logActivity(`A notat ${type.toUpperCase()} la camera ${roomId} pe CH${ch} (${displayTime})`);
@@ -493,25 +564,33 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const toggleDead = useCallback((roomId: string, ch: number) => {
     const isDead = !(spawnData?.rooms?.[roomId]?.[`ch${ch}`]?.dead);
-    set(ref(db, `${basePath}/entries/${ch}/dead`), isDead);
+    const updates: Record<string, any> = {
+      [`entries/${ch}/dead`]: isDead,
+      [`rooms/${roomId}/ch${ch}/dead`]: isDead,
+    };
+    update(ref(db, basePath), updates);
     logActivity(isDead ? `A marcat CH${ch} ca BĂTUT` : `A reînviat CH${ch}`);
   }, [spawnData, basePath, logActivity]);
 
   const cycleStatus = useCallback((roomId: string, ch: number) => {
     const entry = spawnData?.rooms?.[roomId]?.[`ch${ch}`];
     if (!entry) return;
+    const updates: Record<string, any> = {};
     if (entry.dead) {
-      set(ref(db, `${basePath}/entries/${ch}`), { room: roomId, type: entry.type, dead: false });
+      updates[`entries/${ch}`] = { room: roomId, type: entry.type, dead: false };
+      updates[`rooms/${roomId}/ch${ch}`] = { type: entry.type, dead: false };
       logActivity(`A reînviat CH${ch}`);
     } else if (entry.going) {
-      set(ref(db, `${basePath}/entries/${ch}`), { room: roomId, type: entry.type, dead: true });
+      updates[`entries/${ch}`] = { room: roomId, type: entry.type, dead: true };
+      updates[`rooms/${roomId}/ch${ch}`] = { type: entry.type, dead: true };
       logActivity(`A bătut CH${ch} (Camera ${roomId})`);
     } else {
       const goingName = user?.name || 'User';
       const goingColor = user?.color || '#10b981';
-      set(ref(db, `${basePath}/entries/${ch}`), { room: roomId, type: entry.type, dead: false, going: goingName, goingColor });
-      logActivity(`Este la CH${ch}`);
+      updates[`entries/${ch}`] = { room: roomId, type: entry.type, dead: false, going: goingName, goingColor };
+      updates[`rooms/${roomId}/ch${ch}`] = { type: entry.type, dead: false, going: goingName, goingColor };
     }
+    update(ref(db, basePath), updates);
   }, [spawnData, basePath, user, logActivity]);
 
   const clearCH = useCallback((ch: number) => {
@@ -520,9 +599,15 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     updates[`entries/${ch}`] = null;
     updates[`pins/ch${ch}`] = null;
     updates[`chBeaten/ch${ch}`] = null;
+    // Also clear from all rooms (Desktop UI source of truth)
+    Object.keys(spawnData?.rooms || {}).forEach(rid => {
+      if (spawnData?.rooms?.[rid]?.[`ch${ch}`]) {
+        updates[`rooms/${rid}/ch${ch}`] = null;
+      }
+    });
     update(ref(db, basePath), updates);
     logActivity(`A RESETAT complet CH${ch} (nebătut)`);
-  }, [basePath, logActivity, pushUndo]);
+  }, [basePath, logActivity, pushUndo, spawnData]);
 
   const clearRoom = useCallback((roomId: string) => { 
     pushUndo(`Clear Room ${roomId}`);
@@ -543,9 +628,10 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     logActivity(isBeaten ? `A schimbat CH${ch} ca bătut` : `A schimbat CH${ch} ca nebătut`);
   }, [spawnData, basePath, logActivity, pushUndo]);
 
-  const setCHTime = useCallback((ch: number, mmss: string | null) => { 
+  const setCHTime = useCallback((ch: number, mmss: string | null) => {
     pushUndo(`Time CH${ch}`);
-    set(ref(db, `${basePath}/chTimes/ch${ch}`), mmss); 
+    set(ref(db, `${basePath}/chTimes/ch${ch}`), mmss);
+    if (ch === 1) chTimeSetCooldownRef.current = Date.now(); // guard against false spawn reset
     if (mmss) logActivity(`A setat timpul CH${ch} la ${mmss}`);
   }, [basePath, logActivity, pushUndo]);
 
@@ -563,22 +649,21 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const historyPath = `teams/${teamId}/spawn/history`;
     const lastTsPath = `teams/${teamId}/spawn/historyLastTs`;
 
-    get(ref(db, lastTsPath)).then(snapshot => {
-      const lastTs = snapshot.val() || 0;
-      if (nowMs - lastTs < 60000) return;
-      set(ref(db, lastTsPath), nowMs);
+    runTransaction(ref(db, lastTsPath), (current) => {
+      if (current && nowMs - current < 60000) return; // abort — already pushed recently
+      return nowMs;
+    }).then(({ committed }) => {
+      if (!committed) return;
 
-      // Convert Pro rooms format to Web rooms format (object of arrays)
       const convertedRooms: Record<string, any[]> = {};
       let sefCount = 0;
       let genCount = 0;
-      
+
       Object.entries(spawnData.rooms || {}).forEach(([rid, chs]) => {
         if (!convertedRooms[rid]) convertedRooms[rid] = [];
         Object.entries(chs).forEach(([chKey, entry]: [string, any]) => {
           if (entry.type === 'sef') sefCount++;
           if (entry.type === 'gen') genCount++;
-          
           convertedRooms[rid].push({
             ch: parseInt(chKey.replace('ch', '')),
             type: entry.type,
@@ -609,20 +694,109 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [basePath, logActivity, pushUndo, pushSpawnHistory]);
   clearAllRoomsRef.current = clearAllRooms;
 
-  const setSpawnType = useCallback((type: 'simplu' | 'dublu') => { 
+  const clearSpawnForRespawn = useCallback((cycleKey: string) => {
+    if (!spawnData || !basePath) return;
+    const cycleRef = ref(db, `${basePath}/_spawnCycle`);
+    runTransaction(cycleRef, (current) => {
+      if (current && current.key === cycleKey) return; // abort — already handled
+      return { key: cycleKey, ts: Date.now() };
+    }).then(({ committed, snapshot }) => {
+      if (!committed || !snapshot) return;
+      const syncedNow = new Date(Date.now() + serverTimeOffset);
+      const nextHour = (syncedNow.getUTCHours() + 1) % 24;
+      const rule = spawnData.parityRule;
+      let nextType: 'simplu' | 'dublu';
+      if (rule) {
+        const sameParity = (nextHour % 2) === (rule.settledHour % 2);
+        nextType = sameParity ? rule.settledType : (rule.settledType === 'dublu' ? 'simplu' : 'dublu');
+      } else {
+        nextType = spawnData.spawnType === 'dublu' ? 'simplu' : 'dublu';
+      }
+      pushSpawnHistory();
+      const intervalMs = spawnData.anchor?.intervalMs ?? 3600000;
+      const newAnchor = { ts: Date.now() + serverTimeOffset, type: nextType, intervalMs };
+      const alivePins: Record<string, any> = {};
+      if (spawnData.pins) {
+        Object.entries(spawnData.pins).forEach(([k, v]: [string, any]) => {
+          if (v && v.x) alivePins[k] = v;
+        });
+      }
+      const resetData: Record<string, any> = {
+        ...spawnData,
+        spawnType: nextType,
+        _prevSpawnType: spawnData.spawnType ?? 'simplu',
+        rooms: null,
+        entries: null,
+        chBeaten: null,
+        anchor: newAnchor,
+        _spawnCycle: { key: cycleKey, ts: snapshot.val()?.ts ?? Date.now() },
+        _resetAt: Date.now(),
+        _rooms_cleared: true,
+        pins: Object.keys(alivePins).length > 0 ? alivePins : null
+      };
+      delete resetData._spawnTypeChangesAt;
+      set(ref(db, basePath), resetData).catch(e => console.warn('[spawn] reset write error:', e));
+      logTypeChange(spawnData.spawnType ?? 'simplu', nextType, 'reset_scheduled');
+      push(ref(db, 'syslog'), {
+        teamId,
+        event: 'spawn_auto_reset',
+        cycleKey,
+        nextType,
+        ts: Date.now()
+      }).catch(() => {});
+    }).catch(e => console.warn('[spawn] clearSpawnForRespawn transaction error:', e));
+  }, [spawnData, basePath, teamId, serverTimeOffset, pushSpawnHistory, logTypeChange]);
+  clearSpawnForRespawnRef.current = clearSpawnForRespawn;
+
+  const setSpawnType = useCallback((type: 'simplu' | 'dublu') => {
     const prevType = spawnData?.spawnType || 'simplu';
     if (prevType === type) return;
     pushUndo(`Spawn Mode: ${type}`);
     pushSpawnHistory();
     const syncedNow = new Date(Date.now() + serverTimeOffset);
-    const hour = syncedNow.getUTCHours();
-    const isEven = (hour % 2 === 0);
+    const nowMs = Date.now() + serverTimeOffset;
+
+    // Parity rule uses the spawn hour (when CH1 fires), not current hour.
+    // e.g. user confirms at 7:53 with spawn at 8:15 → settledHour = 8, not 7.
+    const ch1Val = spawnData?.chTimes?.['ch1'];
+    let ch1DiffSec: number | null = null;
+    if (ch1Val) {
+      const parts = ch1Val.split(':').map(Number);
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        const nowInHour = syncedNow.getMinutes() * 60 + syncedNow.getSeconds();
+        let d = (parts[0] * 60 + parts[1]) - nowInHour;
+        if (d <= 0) d += 3600;
+        ch1DiffSec = d;
+      }
+    }
+    const spawnMomentMs = ch1DiffSec !== null && ch1DiffSec > 0
+      ? nowMs + ch1DiffSec * 1000
+      : nowMs;
+    const spawnUtcHour = new Date(spawnMomentMs).getUTCHours();
+    const isEven = (spawnUtcHour % 2 === 0);
     const evenHourType = isEven ? type : (type === 'dublu' ? 'simplu' : 'dublu');
-    const updates: Record<string, any> = { spawnType: type, evenHourType, rooms: null, entries: null, pins: null, chBeaten: null };
+    const parityRule = { settledHour: spawnUtcHour, settledType: type };
+
+    // Anchor: start of current cycle
+    const intervalMs = spawnData?.anchor?.intervalMs ?? 3600000;
+    let cycleStartTs = nowMs;
+    if (spawnData?.anchor?.ts) {
+      const elapsed = nowMs - spawnData.anchor.ts;
+      if (elapsed >= 0) {
+        const cyclesSoFar = Math.floor(elapsed / intervalMs);
+        cycleStartTs = spawnData.anchor.ts + cyclesSoFar * intervalMs;
+      }
+    }
+    const anchor = { ts: cycleStartTs, type, intervalMs };
+
+    const updates: Record<string, any> = { spawnType: type, evenHourType, parityRule, anchor, _prevSpawnType: null, _resetAt: null, rooms: null, entries: null, pins: null, chBeaten: null };
     update(ref(db, basePath), updates);
-    logTypeChange(prevType, type);
-    logActivity(`A schimbat modul de spawn în ${type.toUpperCase()} (calibrare: ora ${isEven ? 'pară' : 'impară'} = ${evenHourType})`);
-  }, [basePath, logActivity, pushUndo, spawnData?.spawnType, logTypeChange, pushSpawnHistory, serverTimeOffset]);
+
+    const localSpawnHour = new Date(ch1DiffSec !== null && ch1DiffSec > 0 ? Date.now() + ch1DiffSec * 1000 : Date.now()).getHours();
+    const parityLocal = (localSpawnHour % 2 === 0) ? 'pară' : 'impară';
+    logTypeChange(prevType, type, 'calibrare_manuala');
+    logActivity(`A setat spawnul ${type.toUpperCase()} — spawn ora ${localSpawnHour} (${parityLocal})`);
+  }, [basePath, logActivity, pushUndo, spawnData?.spawnType, spawnData?.chTimes, spawnData?.anchor, logTypeChange, pushSpawnHistory, serverTimeOffset]);
 
   const toggleGenFals = useCallback((ch: number, roomId: string) => {
     pushUndo(`GF ${roomId}`);
@@ -649,11 +823,11 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
 
 
-  const [debugAlertStart, setDebugAlertStart] = useState<number | null>(null);
+  const debugAlertStartRef = useRef<number | null>(null);
 
   const triggerDebugAlert = useCallback((type: '30s' | '2min') => {
     if (type === '30s') {
-      setDebugAlertStart(Date.now());
+      debugAlertStartRef.current = Date.now();
       setActiveAlerts(prev => Array.from(new Set([...prev, 'ch1'])));
       emit('spawn-alert-fired', 'ch1').catch(() => {});
       // Sunetul doar din fereastra principala
@@ -671,7 +845,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (next.length === 0) stopSpawnAlarm();
       return next;
     });
-    if (ch === 'ch1') setDebugAlertStart(null);
+    if (ch === 'ch1') debugAlertStartRef.current = null;
     if (!fromEvent) {
       try { await emit('confirm-spawn-alert', ch); } catch (e) {}
     }
@@ -705,8 +879,8 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setActiveAlerts(prev => {
         const next = prev.filter(ch => {
-          if (ch === 'ch1' && debugAlertStart !== null) {
-            const elapsed = Math.floor((nowMs - debugAlertStart) / 1000);
+          if (ch === 'ch1' && debugAlertStartRef.current !== null) {
+            const elapsed = Math.floor((nowMs - debugAlertStartRef.current) / 1000);
             return elapsed < 30;
           }
           const val = spawnData?.chTimes?.[ch];
@@ -723,7 +897,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, 500);
 
     return () => clearInterval(inv);
-  }, [activeAlerts.length, spawnData?.chTimes, serverTimeOffset, debugAlertStart, stopSpawnAlarm]);
+  }, [activeAlerts.length, spawnData?.chTimes, serverTimeOffset, stopSpawnAlarm]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -67,6 +67,7 @@ export function CHPopoutView() {
 
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
   const [showOnFeedback, setShowOnFeedback] = useState(false);
+  const [showOffFeedback, setShowOffFeedback] = useState(false);
   const [now, setNow] = useState(new Date(Date.now() + serverTimeOffset));
   const [editingCh, setEditingCh] = useState<number | null>(null);
   const clickTimers = React.useRef<Partial<Record<number, ReturnType<typeof setTimeout>>>>({});
@@ -119,43 +120,14 @@ export function CHPopoutView() {
   };
 
   const displayedType = useMemo(() => {
-    const baseType = spawnData?.spawnType || 'Simplu';
-    const ch1Time = spawnData?.chTimes?.ch1;
-    const ch6Time = spawnData?.chTimes?.ch6;
-    if (!ch1Time || !ch6Time) return baseType;
-
-    const parse = (s: string) => {
-      const p = s.split(':').map(n => parseInt(n));
-      return p[0] * 60 + p[1];
-    };
-
-    const t1 = parse(ch1Time);
-    const t6 = parse(ch6Time);
-    const nowInHour = now.getMinutes() * 60 + now.getSeconds();
-
-    // Trigger point: T1 - 5s
-    let trigger = t1 - 5;
-    if (trigger < 0) trigger += 3600;
-
-    // Grace End point: T6 + 300s
-    let graceEnd = (t6 + 300) % 3600;
-
-    // Determine if we are in the grace period (from switch until T6 + 5m)
-    // This is the period where the "next" spawn has been set in DB, but we want to show the "current" one
-    let isInGrace = false;
-    if (trigger < graceEnd) {
-      isInGrace = nowInHour >= trigger && nowInHour < graceEnd;
-    } else {
-      // Wraps around the hour (e.g. trigger at 59:55, graceEnd at 04:40)
-      isInGrace = nowInHour >= trigger || nowInHour < graceEnd;
+    const currentType = spawnData?.spawnType || 'simplu';
+    const prevType = spawnData?._prevSpawnType;
+    const resetAt = spawnData?._resetAt ?? 0;
+    if (prevType && resetAt && Date.now() - resetAt < 15 * 60 * 1000) {
+      return prevType;
     }
-
-    if (isInGrace) {
-      return baseType === 'dublu' ? 'simplu' : 'dublu';
-    }
-
-    return baseType;
-  }, [spawnData?.spawnType, spawnData?.chTimes?.ch1, spawnData?.chTimes?.ch6, now]);
+    return currentType;
+  }, [spawnData?.spawnType, spawnData?._prevSpawnType, spawnData?._resetAt, now]);
 
   const chList = useMemo(() => {
     return [1, 2, 3, 4, 5, 6].map(ch => {
@@ -185,17 +157,20 @@ export function CHPopoutView() {
           if (next) {
             setShowOnFeedback(true);
             setTimeout(() => setShowOnFeedback(false), 2000);
+          } else {
+            setShowOffFeedback(true);
+            setTimeout(() => setShowOffFeedback(false), 2000);
           }
         }
       }}
     >
       {/* Drag Region - Inset to allow resizing at edges */}
       <div data-tauri-drag-region className="absolute inset-1 z-0 cursor-default" />
-      
+
       {/* Status Overlay for feedback */}
       <div className={cn(
         "absolute top-2 left-1/2 -translate-x-1/2 z-[100] px-3 py-1 bg-accent-gold/20 border border-accent-gold/40 rounded-full text-[9px] font-black uppercase tracking-widest text-accent-gold transition-all duration-500 pointer-events-none",
-        isAlwaysOnTop ? "opacity-0 scale-95" : "opacity-100 scale-100"
+        showOffFeedback ? "opacity-100 scale-100" : "opacity-0 scale-95"
       )}>
         Always on Top: OFF
       </div>

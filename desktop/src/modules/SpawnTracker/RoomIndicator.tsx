@@ -13,9 +13,10 @@ interface RoomIndicatorProps {
   roomChannels: any;
   genFals: any;
   onAction: (roomId: string, label: string, e: React.MouseEvent, type: 'sef' | 'gen') => void;
+  onGenFalsToggle?: (roomId: string, e: React.MouseEvent) => void;
 }
 
-export function RoomIndicator({ id, label, x, y, isSpawn, w, h, roomChannels, genFals, onAction }: RoomIndicatorProps) {
+export function RoomIndicator({ id, label, x, y, isSpawn, w, h, roomChannels, genFals, onAction, onGenFalsToggle }: RoomIndicatorProps) {
   const chList = Object.keys(roomChannels || {}).map(k => k.replace('ch', ''));
   const activeEntries = Object.values(roomChannels || {}).filter((e: any) => e && !e.dead);
   const goingEntries = activeEntries.filter((e: any) => e.going);
@@ -93,6 +94,7 @@ export function RoomIndicator({ id, label, x, y, isSpawn, w, h, roomChannels, ge
       style={dotStyle}
       onClick={(e) => { if (!isSpawn) return; onAction(id, label, e, 'sef'); }}
       onContextMenu={(e) => { e.preventDefault(); if (!isSpawn) return; onAction(id, label, e, 'gen'); }}
+      onAuxClick={(e) => { e.preventDefault(); if ((id === '18' || id === 'F') && onGenFalsToggle) onGenFalsToggle(id, e); }}
     >
       {isRoyal && (
         <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none z-30">

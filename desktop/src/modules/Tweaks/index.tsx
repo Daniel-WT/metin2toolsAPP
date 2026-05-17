@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { open } from '@tauri-apps/api/dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/api/fs';
 import { invoke } from '@tauri-apps/api/tauri';
-import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X, Sliders, Shield } from 'lucide-react';
+import { FolderOpen, Monitor, CheckCircle2, Plus, Trash2, GripVertical, RefreshCw, Type, AlertCircle, Crosshair, WifiOff, Key, X, Sliders, Shield, Bookmark } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { register, unregister } from '@tauri-apps/api/globalShortcut';
 
@@ -32,18 +32,39 @@ interface GraphicPreset {
   custom?: boolean;
 }
 
+interface TcpProfile {
+  hotkey?: string | null;
+  whitelisted?: boolean;
+}
+
 const GFX_SETTINGS = [
-  { key: 'SHADOW_RENDER_QUALITY',  label: 'Calitate Umbre',   values: ['0','1','2'],           valueLabels: ['Off','Low','High'] },
-  { key: 'CHARACTER_SHADOW_ENABLE',label: 'Umbre Personaj',   values: ['0','1'],               valueLabels: ['Off','On'] },
-  { key: 'BPP',                    label: 'Adâncime Culori',  values: ['16','32'],             valueLabels: ['16 bpp','32 bpp'] },
-  { key: 'EFFECT_LEVEL',           label: 'Efecte',           values: ['0','1','2','3','4'],   valueLabels: ['Normal','1','2','3','Ascuns'] },
-  { key: 'PRIVATE_SHOP_LEVEL',     label: 'Shopuri Private',  values: ['0','1','2','3','4'],   valueLabels: ['Normal','1','2','3','Ascuns'] },
-  { key: 'DROP_ITEM_LEVEL',        label: 'Drop Items',       values: ['0','1','2','3','4'],   valueLabels: ['Normal','1','2','3','Ascuns'] },
+  { key: 'VIEW_DISTANCE_SET',    label: 'Distanță Randare',  values: ['0','1','2','3','4','5','6'], valueLabels: ['Min','1','2','3','4','5','Max'] },
+  { key: 'SHADOW_TARGET_LEVEL',  label: 'Umbră Țintă',       values: ['0','1','2','3'],             valueLabels: ['Fără umbră','Fundal','Fundal+Jucător','Toate țintele'] },
+  { key: 'SHADOW_QUALITY_LEVEL', label: 'Calitate Umbre',    values: ['0','1','2'],                 valueLabels: ['Off','Low','High'] },
+  { key: 'EFFECT_LEVEL',         label: 'Efecte',            values: ['0','1','2','3','4'],         valueLabels: ['Normal','Eu+Monștri','Eu+Jucători','Doar eu','Ascuns'] },
+  { key: 'PRIVATE_SHOP_LEVEL',   label: 'Magazine Private',  values: ['0','1','2','3','4'],         valueLabels: ['Normal','Rază mare','Rază medie','Rază mică','Vecinătate'] },
+  { key: 'DROP_ITEM_LEVEL',      label: 'Cădere Obiecte',    values: ['0','1','2','3','4'],         valueLabels: ['Efect+Nume','Fără efect','Fără ef/Nume','Obj. ascuns','Obj.+Nume ascuns'] },
+  { key: 'DROP_YANG_SHOW',       label: 'Drop Yang',         values: ['0','1'],                    valueLabels: ['Ascuns','Vizibil'] },
+  { key: 'BPP',                  label: 'Adâncime Culori',   values: ['16','32'],                  valueLabels: ['16 bpp','32 bpp'] },
 ];
 
 const DEFAULT_GFX_PRESETS: GraphicPreset[] = [
-  { id: 'gfx_normal', label: 'Normal',    settings: { EFFECT_LEVEL: '0', PRIVATE_SHOP_LEVEL: '0', DROP_ITEM_LEVEL: '0' } },
-  { id: 'gfx_opt',    label: 'Optimizat', settings: { EFFECT_LEVEL: '4', PRIVATE_SHOP_LEVEL: '4', DROP_ITEM_LEVEL: '4' } },
+  {
+    id: 'gfx_normal', label: 'Normal',
+    settings: {
+      VIEW_DISTANCE_SET: '6', SHADOW_TARGET_LEVEL: '3', SHADOW_QUALITY_LEVEL: '2',
+      EFFECT_LEVEL: '0', PRIVATE_SHOP_LEVEL: '0', DROP_ITEM_LEVEL: '0',
+      DROP_YANG_SHOW: '1', BPP: '32',
+    },
+  },
+  {
+    id: 'gfx_opt', label: 'Optimizat',
+    settings: {
+      VIEW_DISTANCE_SET: '0', SHADOW_TARGET_LEVEL: '0', SHADOW_QUALITY_LEVEL: '0',
+      EFFECT_LEVEL: '4', PRIVATE_SHOP_LEVEL: '4', DROP_ITEM_LEVEL: '4',
+      DROP_YANG_SHOW: '0', BPP: '16',
+    },
+  },
 ];
 
 const DEFAULT_PRESETS: Preset[] = [
@@ -65,6 +86,7 @@ const LS_ORDER          = 'm2tweaks_order';
 const LS_TCP_BINDINGS   = 'm2_tcp_bindings';
 const LS_TCP_WHITELIST  = 'm2_tcp_whitelist';
 const LS_CLOSEALL_BIND  = 'm2_tcp_closeall_bind';
+const LS_TCP_PROFILES   = 'm2_tcp_profiles';
 const LS_GFX_PRESETS    = 'm2tweaks_gfx_presets';
 
 function loadCustomPresets(): Preset[]   { try { return JSON.parse(localStorage.getItem(LS_PRESETS) || '[]'); } catch { return []; } }
@@ -96,6 +118,7 @@ export default function Tweaks() {
   });
   const [newGfxLabel, setNewGfxLabel]           = useState('');
   const [applyingGfx, setApplyingGfx]           = useState<string | null>(null);
+  const [applyingGfxKey, setApplyingGfxKey]     = useState<string | null>(null);
 
   // ── Window renamer state ──────────────────────────────────────────────
   const [m2wins, setM2wins]       = useState<Metin2Win[]>([]);
@@ -118,9 +141,16 @@ export default function Tweaks() {
   const [closeAllBind, setCloseAllBind]           = useState<string | null>(() => localStorage.getItem(LS_CLOSEALL_BIND) || null);
   const [listeningCloseAll, setListeningCloseAll] = useState(false);
   const [closingAll, setClosingAll]               = useState(false);
+  const [searchTcp, setSearchTcp]                 = useState('');
+  const [resFilterTitle, setResFilterTitle]       = useState<string | null>(null);
+  const [resFilterTcp, setResFilterTcp]           = useState<string | null>(null);
+  const [tcpProfiles, setTcpProfiles] = useState<Record<string, TcpProfile>>(() => {
+    try { return JSON.parse(localStorage.getItem(LS_TCP_PROFILES) || '{}'); } catch { return {}; }
+  });
   const closeAllBindRef    = useRef<string | null>(null);
   const tcpWhitelistRef    = useRef<Set<string>>(new Set());
   const m2winsRef          = useRef<Metin2Win[]>([]);
+  const tcpProfilesRef     = useRef<Record<string, TcpProfile>>({});
   const autoScanInProgress = useRef(false);
 
   // ── Drag state (pointer-based, same system as Inventory) ──────────────
@@ -159,12 +189,44 @@ export default function Tweaks() {
   useEffect(() => { closeAllBindRef.current = closeAllBind; }, [closeAllBind]);
   useEffect(() => { tcpWhitelistRef.current = tcpWhitelist; }, [tcpWhitelist]);
   useEffect(() => { m2winsRef.current = m2wins; }, [m2wins]);
+  useEffect(() => { tcpProfilesRef.current = tcpProfiles; }, [tcpProfiles]);
 
   // Sync whitelist PIDs to Rust whenever windows list or whitelist changes
   useEffect(() => {
     const pids = m2wins.filter(w => tcpWhitelist.has(String(w.pid))).map(w => w.pid);
     invoke('update_closeall_whitelist', { pids }).catch(() => {});
   }, [m2wins, tcpWhitelist]);
+
+  // Auto-apply saved profile when a window with a known title appears
+  useEffect(() => {
+    const profiles = tcpProfilesRef.current;
+    if (Object.keys(profiles).length === 0) return; // no profiles saved, nothing to do
+
+    // Whitelist: functional updater guarantees `prev` is the real current state
+    setTcpWhitelist(prev => {
+      let changed = false;
+      const next = new Set(prev);
+      m2wins.forEach(w => {
+        if (profiles[w.title]?.whitelisted && !prev.has(String(w.pid))) {
+          next.add(String(w.pid));
+          changed = true;
+        }
+      });
+      if (!changed) return prev;
+      localStorage.setItem(LS_TCP_WHITELIST, JSON.stringify([...next]));
+      return next;
+    });
+
+    // Hotkey binds
+    m2wins.forEach(w => {
+      const profile = profiles[w.title];
+      if (!profile?.hotkey) return;
+      const pidStr = String(w.pid);
+      if (tcpBindingsRef.current[pidStr] !== profile.hotkey) {
+        doBind(pidStr, profile.hotkey);
+      }
+    });
+  }, [m2wins]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Build derived map: hotkey → pidStr[]
   function hotkeyToPids(bindings: Record<string, string>): Record<string, string[]> {
@@ -241,15 +303,31 @@ export default function Tweaks() {
     };
   }, []);
 
-  // Auto-scan Metin2 windows on mount and every 4s
+  // Auto-scan Metin2 windows on mount and every 5s
   useEffect(() => {
     const doScan = async () => {
       if (autoScanInProgress.current) return;
       autoScanInProgress.current = true;
       try {
         const wins = await invoke<Metin2Win[]>('list_metin2_windows');
-        setM2wins(wins);
+        // Sort by PID for stable comparison
+        wins.sort((a, b) => a.pid - b.pid);
+
+        // Only update m2wins if something actually changed — prevents re-renders every 5s when idle
+        setM2wins(prev => {
+          if (
+            prev.length === wins.length &&
+            prev.every((w, i) => w.pid === wins[i].pid && w.title === wins[i].title && w.hwnd === wins[i].hwnd)
+          ) return prev;
+          return wins;
+        });
+
+        // Only update winTitles when the set of windows changed (new/closed clients)
         setWinTitles(prev => {
+          const prevHwnds = new Set(Object.keys(prev));
+          const newHwnds  = new Set(wins.map(w => w.hwnd));
+          const sameSet   = prevHwnds.size === newHwnds.size && wins.every(w => prevHwnds.has(w.hwnd));
+          if (sameSet) return prev;
           const next: Record<string, string> = {};
           wins.forEach(w => { next[w.hwnd] = prev[w.hwnd] ?? w.title; });
           return next;
@@ -258,7 +336,7 @@ export default function Tweaks() {
       autoScanInProgress.current = false;
     };
     doScan();
-    const inv = setInterval(doScan, 4000);
+    const inv = setInterval(doScan, 5000);
     return () => clearInterval(inv);
   }, []);
 
@@ -266,9 +344,35 @@ export default function Tweaks() {
   useEffect(() => {
     if (!listeningBind) return;
     const pidStr = listeningBind;
+
+    // Unregister all keyboard shortcuts so keydown events reach the webview
+    // (global shortcuts consume the key at OS level and block the webview)
+    const kbHotkeys = new Set(Object.values(tcpBindingsRef.current).filter(h => h !== 'Mouse4' && h !== 'Mouse5'));
+    kbHotkeys.forEach(h => { unregister(h).catch(() => {}); });
+    const caH = closeAllBindRef.current;
+    if (caH && caH !== 'Mouse4' && caH !== 'Mouse5') unregister(caH).catch(() => {});
+
+    // Re-registers all keyboard hotkeys AFTER doBind completes.
+    // Pass the hotkey that doBind just registered (to skip it); pass null to restore everything.
+    const reRegisterAfterBind = (registeredHotkey: string | null) => {
+      const map = hotkeyToPids(tcpBindingsRef.current);
+      for (const [h, pids] of Object.entries(map)) {
+        if (h !== registeredHotkey && h !== 'Mouse4' && h !== 'Mouse5') {
+          registerHotkey(h, pids).catch(() => {});
+        }
+      }
+      const latestCaH = closeAllBindRef.current;
+      if (latestCaH && latestCaH !== registeredHotkey && latestCaH !== 'Mouse4' && latestCaH !== 'Mouse5') {
+        register(latestCaH, async () => {
+          const excludePids = m2winsRef.current.filter(w => tcpWhitelistRef.current.has(String(w.pid))).map(w => w.pid);
+          try { await invoke('close_tcp_all_except', { excludePids }); } catch {}
+        }).catch(() => {});
+      }
+    };
+
     const onKey = async (e: KeyboardEvent) => {
       if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-      if (e.key === 'Escape') { setListeningBind(null); return; }
+      if (e.key === 'Escape') { setListeningBind(null); reRegisterAfterBind(null); return; }
       e.preventDefault();
       const parts: string[] = [];
       if (e.ctrlKey) parts.push('Ctrl');
@@ -282,14 +386,20 @@ export default function Tweaks() {
       const hotkey = parts.join('+');
       setListeningBind(null);
       await doBind(pidStr, hotkey);
+      // If doBind succeeded the hotkey is already registered; re-register all others.
+      // If it failed (tcpBindingsRef not updated), re-register everything including hotkey.
+      const saved = tcpBindingsRef.current[pidStr] === hotkey ? hotkey : null;
+      reRegisterAfterBind(saved);
     };
     const onMouse = async (e: MouseEvent) => {
-      if (e.button === 3) { e.preventDefault(); setListeningBind(null); await doBind(pidStr, 'Mouse4'); }
-      else if (e.button === 4) { e.preventDefault(); setListeningBind(null); await doBind(pidStr, 'Mouse5'); }
+      if (e.button === 3) { e.preventDefault(); setListeningBind(null); await doBind(pidStr, 'Mouse4'); reRegisterAfterBind(null); }
+      else if (e.button === 4) { e.preventDefault(); setListeningBind(null); await doBind(pidStr, 'Mouse5'); reRegisterAfterBind(null); }
     };
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('mousedown', onMouse, true);
     return () => {
+      // Only clean up listeners — re-registration is handled explicitly above
+      // to avoid racing with doBind's async hotkey operations.
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('mousedown', onMouse, true);
     };
@@ -298,9 +408,32 @@ export default function Tweaks() {
   // Listen for key or mouse when binding Close All
   useEffect(() => {
     if (!listeningCloseAll) return;
+
+    // Unregister all keyboard shortcuts so keydown events reach the webview
+    const kbHotkeys = new Set(Object.values(tcpBindingsRef.current).filter(h => h !== 'Mouse4' && h !== 'Mouse5'));
+    kbHotkeys.forEach(h => { unregister(h).catch(() => {}); });
+    const caH = closeAllBindRef.current;
+    if (caH && caH !== 'Mouse4' && caH !== 'Mouse5') unregister(caH).catch(() => {});
+
+    const reRegisterAfterBind = (registeredHotkey: string | null) => {
+      const map = hotkeyToPids(tcpBindingsRef.current);
+      for (const [h, pids] of Object.entries(map)) {
+        if (h !== registeredHotkey && h !== 'Mouse4' && h !== 'Mouse5') {
+          registerHotkey(h, pids).catch(() => {});
+        }
+      }
+      const latestCaH = closeAllBindRef.current;
+      if (latestCaH && latestCaH !== registeredHotkey && latestCaH !== 'Mouse4' && latestCaH !== 'Mouse5') {
+        register(latestCaH, async () => {
+          const excludePids = m2winsRef.current.filter(w => tcpWhitelistRef.current.has(String(w.pid))).map(w => w.pid);
+          try { await invoke('close_tcp_all_except', { excludePids }); } catch {}
+        }).catch(() => {});
+      }
+    };
+
     const onKey = async (e: KeyboardEvent) => {
       if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-      if (e.key === 'Escape') { setListeningCloseAll(false); return; }
+      if (e.key === 'Escape') { setListeningCloseAll(false); reRegisterAfterBind(null); return; }
       e.preventDefault();
       const parts: string[] = [];
       if (e.ctrlKey) parts.push('Ctrl');
@@ -311,12 +444,15 @@ export default function Tweaks() {
       else if (key.length === 1) key = key.toUpperCase();
       else return;
       parts.push(key);
+      const hotkey = parts.join('+');
       setListeningCloseAll(false);
-      await doBindCloseAll(parts.join('+'));
+      await doBindCloseAll(hotkey);
+      const saved = closeAllBindRef.current === hotkey ? hotkey : null;
+      reRegisterAfterBind(saved);
     };
     const onMouse = async (e: MouseEvent) => {
-      if (e.button === 3) { e.preventDefault(); setListeningCloseAll(false); await doBindCloseAll('Mouse4'); }
-      else if (e.button === 4) { e.preventDefault(); setListeningCloseAll(false); await doBindCloseAll('Mouse5'); }
+      if (e.button === 3) { e.preventDefault(); setListeningCloseAll(false); await doBindCloseAll('Mouse4'); reRegisterAfterBind(null); }
+      else if (e.button === 4) { e.preventDefault(); setListeningCloseAll(false); await doBindCloseAll('Mouse5'); reRegisterAfterBind(null); }
     };
     window.addEventListener('keydown', onKey, true);
     window.addEventListener('mousedown', onMouse, true);
@@ -447,6 +583,24 @@ export default function Tweaks() {
     }
   }
 
+  async function applyGfxSetting(key: string, value: string) {
+    if (!cfgPath) return;
+    setApplyingGfxKey(key);
+    try {
+      let content = await readTextFile(cfgPath);
+      const regex = new RegExp(`(${key}\\s+)\\S+`);
+      if (regex.test(content)) {
+        content = content.replace(regex, `$1${value}`);
+        await writeTextFile(cfgPath, content);
+        setGfxSettings(prev => ({ ...prev, [key]: value }));
+      }
+    } catch {
+      showToast('Eroare la scrierea fisierului.', false);
+    } finally {
+      setApplyingGfxKey(null);
+    }
+  }
+
   function saveGfxPreset() {
     const label = newGfxLabel.trim();
     if (!label) { showToast('Introdu un nume pentru preset.', false); return; }
@@ -562,6 +716,8 @@ export default function Tweaks() {
       tcpBindingsRef.current = current;
       localStorage.setItem(LS_TCP_BINDINGS, JSON.stringify(current));
       showToast(`Bind setat: ${hotkey} → PID ${pid}`);
+      const win = m2winsRef.current.find(w => w.pid === pid);
+      if (win) saveProfile(win.title, { hotkey });
     } catch {
       showToast(`Shortcut-ul "${hotkey}" nu poate fi inregistrat.`, false);
     }
@@ -588,6 +744,8 @@ export default function Tweaks() {
     tcpBindingsRef.current = updated;
     localStorage.setItem(LS_TCP_BINDINGS, JSON.stringify(updated));
     showToast('Bind sters.');
+    const win = m2winsRef.current.find(w => String(w.pid) === pidStr);
+    if (win) saveProfile(win.title, { hotkey: null });
   }
 
   async function closeTcp(pidStr: string) {
@@ -619,13 +777,40 @@ export default function Tweaks() {
   }
 
   function toggleWhitelist(pidStr: string) {
+    const isAdding = !tcpWhitelistRef.current.has(pidStr);
     setTcpWhitelist(prev => {
       const next = new Set(prev);
-      if (next.has(pidStr)) next.delete(pidStr);
-      else next.add(pidStr);
+      if (isAdding) next.add(pidStr);
+      else next.delete(pidStr);
       localStorage.setItem(LS_TCP_WHITELIST, JSON.stringify([...next]));
       return next;
     });
+    const win = m2winsRef.current.find(w => String(w.pid) === pidStr);
+    if (win) saveProfile(win.title, { whitelisted: isAdding });
+  }
+
+  function saveProfile(title: string, updates: Partial<TcpProfile>) {
+    const current = tcpProfilesRef.current[title] ?? {};
+    const merged: TcpProfile = { ...current, ...updates };
+    let next: Record<string, TcpProfile>;
+    if (!merged.hotkey && !merged.whitelisted) {
+      next = { ...tcpProfilesRef.current };
+      delete next[title];
+    } else {
+      next = { ...tcpProfilesRef.current, [title]: merged };
+    }
+    tcpProfilesRef.current = next;
+    setTcpProfiles(next);
+    localStorage.setItem(LS_TCP_PROFILES, JSON.stringify(next));
+  }
+
+  function deleteProfile(title: string) {
+    const next = { ...tcpProfilesRef.current };
+    delete next[title];
+    tcpProfilesRef.current = next;
+    setTcpProfiles(next);
+    localStorage.setItem(LS_TCP_PROFILES, JSON.stringify(next));
+    showToast(`Profil "${title}" sters.`);
   }
 
   async function doBindCloseAll(hotkey: string) {
@@ -796,6 +981,23 @@ export default function Tweaks() {
     preview.splice(insertAt, 0, moved);
     return preview;
   }, [sortedPresets, dragId, dragOverId]);
+
+  const uniqueResolutions = useMemo(() => {
+    const seen = new Set<string>();
+    m2wins.forEach(w => { if (w.width > 0 && w.height > 0) seen.add(`${w.width}×${w.height}`); });
+    return Array.from(seen);
+  }, [m2wins]);
+
+  const filteredTitleWins = useMemo(() =>
+    resFilterTitle ? m2wins.filter(w => `${w.width}×${w.height}` === resFilterTitle) : m2wins,
+  [m2wins, resFilterTitle]);
+
+  const filteredTcpWins = useMemo(() =>
+    m2wins.filter(w =>
+      (!searchTcp || w.title.toLowerCase().includes(searchTcp.toLowerCase())) &&
+      (!resFilterTcp || `${w.width}×${w.height}` === resFilterTcp)
+    ),
+  [m2wins, searchTcp, resFilterTcp]);
 
   // ── Render ─────────────────────────────────────────────────────────────
 
@@ -985,17 +1187,32 @@ export default function Tweaks() {
           </div>
         </div>
 
-        {/* Current gfx values */}
+        {/* Individual setting controls */}
         {Object.keys(gfxSettings).length > 0 && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1.5">
             {GFX_SETTINGS.map(({ key, label, valueLabels, values }) => {
-              const val = gfxSettings[key];
-              const idx = val ? values.indexOf(val) : -1;
-              const displayLabel = idx >= 0 ? valueLabels[idx] : (val ?? '—');
+              const currentVal = gfxSettings[key];
+              const isApplying = applyingGfxKey === key;
               return (
-                <div key={key} className="px-3 py-2.5 rounded-xl bg-bg-secondary border border-white/5 text-center">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-600 mb-1">{label}</p>
-                  <p className="text-sm font-bold text-accent-gold font-display">{displayLabel}</p>
+                <div key={key} className="flex items-center gap-3 px-3 py-2 rounded-xl bg-bg-secondary border border-white/5">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 w-32 shrink-0">{label}</p>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {values.map((v, i) => (
+                      <button
+                        key={v}
+                        disabled={!cfgPath || isApplying || !!applyingGfx}
+                        onClick={() => applyGfxSetting(key, v)}
+                        className={cn(
+                          'px-2 py-0.5 rounded-md text-[10px] font-bold border transition-all',
+                          currentVal === v
+                            ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
+                            : 'bg-white/[0.02] border-white/5 text-slate-600 hover:text-slate-200 hover:border-white/15 disabled:opacity-30 disabled:cursor-not-allowed'
+                        )}
+                      >
+                        {valueLabels[i]}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               );
             })}
@@ -1120,6 +1337,24 @@ export default function Tweaks() {
           </button>
         </div>
 
+        {uniqueResolutions.length > 1 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-600 shrink-0">Rezoluție:</span>
+            {uniqueResolutions.map(res => (
+              <button
+                key={res}
+                onClick={() => setResFilterTitle(prev => prev === res ? null : res)}
+                className={cn(
+                  'px-2 py-0.5 rounded-lg text-[9px] font-black border transition-all',
+                  resFilterTitle === res
+                    ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
+                    : 'bg-white/[0.03] border-white/[0.07] text-slate-500 hover:text-slate-300 hover:border-white/15'
+                )}
+              >{res}</button>
+            ))}
+          </div>
+        )}
+
         {m2wins.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8 border border-dashed border-white/5 rounded-xl">
             <AlertCircle className="w-8 h-8 text-slate-700" />
@@ -1129,7 +1364,7 @@ export default function Tweaks() {
           </div>
         ) : (
           <div className="space-y-2">
-            {m2wins.map(w => (
+            {filteredTitleWins.map(w => (
               <div key={w.hwnd} className="flex items-center gap-3 p-3 rounded-xl bg-bg-secondary border border-white/5 hover:border-white/10 transition-colors">
                 {/* Identify button — brings that window to front */}
                 <button
@@ -1227,6 +1462,30 @@ export default function Tweaks() {
           </button>
         </div>
 
+        {m2wins.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="text"
+              placeholder="Cauta dupa titlu..."
+              value={searchTcp}
+              onChange={e => setSearchTcp(e.target.value)}
+              className="flex-1 min-w-[120px] px-3 py-1.5 rounded-lg bg-bg-secondary border border-white/5 text-slate-200 text-xs placeholder-slate-600 focus:outline-none focus:border-white/15 transition-colors"
+            />
+            {uniqueResolutions.length > 1 && uniqueResolutions.map(res => (
+              <button
+                key={res}
+                onClick={() => setResFilterTcp(prev => prev === res ? null : res)}
+                className={cn(
+                  'px-2 py-1 rounded-lg text-[9px] font-black border transition-all shrink-0',
+                  resFilterTcp === res
+                    ? 'bg-accent-gold/15 border-accent-gold/40 text-accent-gold'
+                    : 'bg-white/[0.03] border-white/[0.07] text-slate-500 hover:text-slate-300 hover:border-white/15'
+                )}
+              >{res}</button>
+            ))}
+          </div>
+        )}
+
         {m2wins.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8 border border-dashed border-white/5 rounded-xl">
             <WifiOff className="w-8 h-8 text-slate-700" />
@@ -1234,11 +1493,13 @@ export default function Tweaks() {
           </div>
         ) : (
           <div className="space-y-2">
-            {m2wins.map(w => {
+            {filteredTcpWins.map(w => {
               const pidStr = String(w.pid);
               const bound = tcpBindings[pidStr];
               const isListening = listeningBind === pidStr;
               const whitelisted = tcpWhitelist.has(pidStr);
+              const profile = tcpProfiles[w.title];
+              const hasProfile = !!profile && (!!profile.hotkey || !!profile.whitelisted);
               return (
                 <div key={w.pid} className={cn(
                   'flex items-center gap-3 p-3 rounded-xl border transition-colors',
@@ -1254,9 +1515,25 @@ export default function Tweaks() {
 
                   {/* Process info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">{w.exe}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">{w.exe}</p>
+                      {hasProfile && (
+                        <span className="text-[9px] font-bold text-accent-gold/60 uppercase tracking-widest">profil</span>
+                      )}
+                    </div>
                     <p className="text-xs text-slate-400 truncate">{w.title}</p>
                   </div>
+
+                  {/* Profile bookmark — visible only when profile exists */}
+                  {hasProfile && (
+                    <button
+                      onClick={() => deleteProfile(w.title)}
+                      title={`Profil salvat: ${profile?.hotkey ?? 'fara bind'}${profile?.whitelisted ? ', protejat' : ''} — Click pentru a sterge`}
+                      className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg border bg-accent-gold/10 border-accent-gold/25 text-accent-gold hover:bg-red-500/15 hover:border-red-500/30 hover:text-red-400 transition-all"
+                    >
+                      <Bookmark className="w-3.5 h-3.5" />
+                    </button>
+                  )}
 
                   {/* Whitelist shield */}
                   <button

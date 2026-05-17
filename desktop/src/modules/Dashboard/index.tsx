@@ -16,6 +16,17 @@ interface ChangelogItem {
 
 const CHANGELOG: ChangelogItem[] = [
   {
+    version: 'v1.3.0',
+    date: '17 May 2026',
+    changes: [
+      'Tweaks: preseturi grafice (Normal / Optimizat) si control individual per setare din user.cfg',
+      'Tweaks: profile TCP cu hotkey-uri configurabile si cautare rapida procese',
+      'Update dialog: notificarea de actualizare are acum design custom, fara fereastra Windows nativa',
+      'Spawn: imbunatatiri alarm si UI pop-out',
+    ],
+    type: 'feat'
+  },
+  {
     version: 'v1.2.1',
     date: '17 May 2026',
     changes: [

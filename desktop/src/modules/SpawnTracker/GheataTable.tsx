@@ -32,7 +32,8 @@ export function GheataTable() {
   const isPopout = window.location.search.includes('view=gheatatable');
   const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
   const [showOnFeedback, setShowOnFeedback] = useState(false);
-  useWindowMemory('gheatatable-popout');
+  const [showOffFeedback, setShowOffFeedback] = useState(false);
+  useWindowMemory('gheatatable-popout', isPopout);
 
   useEffect(() => {
     if (isPopout) {
@@ -95,6 +96,9 @@ export function GheataTable() {
           if (next) {
             setShowOnFeedback(true);
             setTimeout(() => setShowOnFeedback(false), 2000);
+          } else {
+            setShowOffFeedback(true);
+            setTimeout(() => setShowOffFeedback(false), 2000);
           }
         }
       }}
@@ -103,11 +107,11 @@ export function GheataTable() {
         <>
           {/* Drag Region - Inset to allow resizing at edges */}
           <div data-tauri-drag-region className="absolute inset-1 z-0 cursor-default" />
-          
+
           {/* Status Overlay */}
           <div className={cn(
             "absolute top-2 left-1/2 -translate-x-1/2 z-[100] px-3 py-1 bg-accent-gold/20 border border-accent-gold/40 rounded-full text-[9px] font-black uppercase tracking-widest text-accent-gold transition-all duration-500 pointer-events-none",
-            isAlwaysOnTop ? "opacity-0 scale-95" : "opacity-100 scale-100"
+            showOffFeedback ? "opacity-100 scale-100" : "opacity-0 scale-95"
           )}>
             Always on Top: OFF
           </div>
@@ -215,7 +219,12 @@ export function GheataTable() {
                     {(() => {
                       if (hasPin) return <span className="text-[9px] font-black text-accent-gold flex items-center justify-center gap-0.5"><MapPin className="w-2.5 h-2.5" /> ASCUNS</span>;
                       if (mainRoom) {
-                        if (isDead) return <span className="text-[9px] font-black text-red-500">DEAD</span>;
+                        if (isDead) return (
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-[9px] font-black text-red-500">DEAD</span>
+                            {type && <span className={cn("text-[8px] font-black opacity-70", type === 'gen' ? 'text-blue-400' : 'text-emerald-400')}>{type === 'gen' ? 'GEN' : 'SEF'}</span>}
+                          </div>
+                        );
                         if (isGoing) return (
                           <div
                             className="flex items-center justify-center gap-1 px-2 py-1 rounded-md border mx-auto w-fit"

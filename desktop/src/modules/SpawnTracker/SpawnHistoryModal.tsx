@@ -246,14 +246,20 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
                         {[1,2,3,4,5,6].map(ch => {
                           let roomFound = '';
                           let isSef = true;
+                          let isNF = false;
                           Object.entries(h.rooms || {}).forEach(([rid, chData]: any) => {
                              if (Array.isArray(chData)) {
                                const found = chData.find(e => e.ch === ch);
-                               if (found) { roomFound = rid; isSef = found.type === 'sef'; }
+                               if (found) {
+                                 roomFound = rid;
+                                 isSef = found.type === 'sef';
+                                 isNF = found.type === 'notfound' || rid === '_nf';
+                               }
                              } else {
                                if (chData[`ch${ch}`]) {
                                  roomFound = rid;
                                  isSef = chData[`ch${ch}`].type === 'sef';
+                                 isNF = chData[`ch${ch}`].type === 'notfound' || rid === '_nf';
                                }
                              }
                           });
@@ -261,13 +267,20 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
                           return (
                             <div key={ch} className="flex-1 bg-white/[0.03] border border-white/5 rounded-lg p-2 flex flex-col items-center justify-center min-h-[40px]">
                               {roomFound ? (
-                                <>
-                                  <span className={cn(
-                                    "text-[11px] font-black",
-                                    isSef ? "text-emerald-400" : "text-blue-400"
-                                  )}>{roomFound}</span>
-                                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">CH{ch}</span>
-                                </>
+                                isNF ? (
+                                  <>
+                                    <span className="text-[11px] font-black text-slate-600">NF</span>
+                                    <span className="text-[8px] font-black text-slate-700 uppercase tracking-tighter">CH{ch}</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className={cn(
+                                      "text-[11px] font-black",
+                                      isSef ? "text-emerald-400" : "text-blue-400"
+                                    )}>{roomFound}</span>
+                                    <span className="text-[8px] font-black text-slate-600 uppercase tracking-tighter">CH{ch}</span>
+                                  </>
+                                )
                               ) : (
                                 <span className="text-slate-800 text-xs">—</span>
                               )}
@@ -358,10 +371,18 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
                     const date = new Date(log.ts);
                     const dateStr = date.toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit' });
                     const timeStr = date.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    
+                    const localH = log.hourLocal ?? date.getHours();
+                    const parityStr = (localH % 2 === 0) ? 'pară' : 'impară';
+                    const reason = log.reason || 'auto-switch';
+                    const reasonLabel = reason === 'calibrare_manuala' ? 'calibrare manuală'
+                      : reason === 'auto-switch' ? 'switch automat'
+                      : reason === 'delayed_switch' ? 'switch după CH6'
+                      : reason === 'reset_scheduled' ? 'reset ciclu'
+                      : reason;
+
                     return (
                       <div key={idx} className="flex items-center gap-6 py-2 px-3 bg-white/[0.01] border border-white/5 rounded-lg hover:bg-white/[0.03] transition-all group">
-                        <div className="w-28 text-[11px] font-medium text-slate-500 font-mono">
+                        <div className="w-28 text-[11px] font-medium text-slate-500 font-mono flex-shrink-0">
                           {dateStr} <span className="text-slate-400">{timeStr}</span>
                         </div>
 
@@ -372,7 +393,7 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
                           )}>
                             {log.from}
                           </div>
-                          
+
                           <ArrowRight className="w-3 h-3 text-slate-700 group-hover:text-slate-500 transition-colors" />
 
                           <div className={cn(
@@ -383,8 +404,9 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
                           </div>
                         </div>
 
-                        <div className="text-[10px] italic text-slate-600 font-medium">
-                          {log.reason || 'auto-switch'}
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-[10px] italic text-slate-500 font-medium">{reasonLabel}</span>
+                          <span className="text-[9px] text-slate-700">ora {localH} ({parityStr}){log.userName ? ` · ${log.userName}` : ''}</span>
                         </div>
                       </div>
                     );
