@@ -1,4 +1,4 @@
-name = "metin2toolsapp"
+name = "metin2"
 main = "worker.js"
 compatibility_date = "2025-09-27"
 compatibility_flags = ["nodejs_compat"]

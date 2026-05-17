@@ -16,6 +16,28 @@ interface ChangelogItem {
 
 const CHANGELOG: ChangelogItem[] = [
   {
+    version: 'v1.2.1',
+    date: '17 May 2026',
+    changes: [
+      'Fix: stergerea unui cont il elimina acum si din Firebase Auth (URL Worker corectat)',
+      'Fix: aprobarea unui cont nu mai afiseaza alerta de ban daca emailul era banat anterior',
+      'Fix: cererile de cont in Admin Panel afiseaza corect (filtrare dupa status, nu account_requests)',
+      'Fix: URL Worker actualizat pentru Server Status si Transferuri',
+    ],
+    type: 'fix'
+  },
+  {
+    version: 'v1.2.0',
+    date: '17 May 2026',
+    changes: [
+      'Aprobare conturi: conturile noi necesita aprobare de la Super-Admin inainte de a accesa aplicatia',
+      'Ecran asteptare: utilizatorii cu cerere in asteptare vad un ecran dedicat pana la aprobare',
+      'Admin Panel: tab-ul Cereri afiseaza acum atat cereri de cont cat si cereri de echipa',
+      'Aprobare/respingere cont direct din Admin Panel cu buton dedicat',
+    ],
+    type: 'feat'
+  },
+  {
     version: 'v1.1.7',
     date: '17 May 2026',
     changes: [
@@ -384,11 +406,11 @@ function SkinsExpiryModal({ isOpen, onClose, skins }: { isOpen: boolean, onClose
 function SpawnStatsModal({ isOpen, onClose, stats }: { isOpen: boolean, onClose: () => void, stats: any }) {
   if (!isOpen) return null;
 
-  const { globalSefPerc, globalGenPerc, globalSefCount, globalGenCount, globalRooms, spawnCount, globalTotalAttempts, globalTotalSlots, totalSessions } = stats;
+  const { globalSefPerc, globalGenPerc, globalSefCount, globalGenCount, sef24h, gen24h, globalRooms, spawnCount, globalTotalAttempts, globalTotalSlots, totalSessions, activeSpawns } = stats;
   const sortedRooms = Object.entries(globalRooms || {} as Record<string, number>)
     .sort((a: any, b: any) => b[1] - a[1])
     .slice(0, 5);
-  const findRate = globalTotalSlots > 0 ? ((globalTotalAttempts / globalTotalSlots) * 100).toFixed(1) : '0';
+  const coverageRate = totalSessions > 0 ? (((activeSpawns ?? 0) / totalSessions) * 100).toFixed(0) : '0';
   const maxRoomCount = sortedRooms.length > 0 ? (sortedRooms[0][1] as number) : 1;
 
   return (
@@ -404,7 +426,7 @@ function SpawnStatsModal({ isOpen, onClose, stats }: { isOpen: boolean, onClose:
             </div>
             <div>
               <h2 className="text-[15px] font-black text-white tracking-tight">Analiză Globală Boss</h2>
-              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-0.5">{totalSessions} spawn-uri · {globalTotalAttempts} intrări</p>
+              <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mt-0.5">{activeSpawns ?? 0} acoperite · {totalSessions} totale</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center text-slate-500 hover:text-white transition-all">
@@ -419,12 +441,19 @@ function SpawnStatsModal({ isOpen, onClose, stats }: { isOpen: boolean, onClose:
           {/* Stats row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-1">
-              <div className="text-[28px] font-black text-emerald-400 leading-none tabular-nums">{findRate}%</div>
-              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Rată Găsire</div>
+              <div className="flex items-baseline gap-1 leading-none">
+                <span className="text-[28px] font-black text-emerald-400 tabular-nums">{activeSpawns ?? 0}</span>
+                <span className="text-[15px] font-black text-slate-600 tabular-nums">/ {totalSessions}</span>
+              </div>
+              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Spawnuri Acoperite</div>
+              <div className="text-[9px] font-bold text-slate-700">{coverageRate}% prezență</div>
             </div>
             <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-1">
-              <div className="text-[28px] font-black text-white leading-none tabular-nums">{spawnCount}</div>
-              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Bossi Găsiți</div>
+              <div className="text-[28px] font-black text-emerald-400 leading-none tabular-nums">{sef24h ?? 0}</div>
+              <div className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Căpetenii · 24h</div>
+              <div className="text-[9px] font-bold text-slate-700">
+                <span className="text-emerald-400">{sef24h ?? 0}</span> căp · <span className="text-blue-400">{gen24h ?? 0}</span> gen
+              </div>
             </div>
           </div>
 
@@ -630,18 +659,48 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
         });
       };
 
+      let activeSpawns = 0;
+      const now24 = Date.now();
+      const cutoff24h = now24 - 86400000;
+      let sef24h = 0;
+      let gen24h = 0;
+
       const historyList = Object.values(hist || {});
-      historyList.forEach((entry: any) => processRooms(entry.rooms));
-      if (active) processRooms(active);
-      
+      historyList.forEach((entry: any) => {
+        processRooms(entry.rooms);
+        if (((entry._sefCount || 0) + (entry._genCount || 0)) > 0) activeSpawns++;
+        if ((entry.ts || 0) >= cutoff24h) {
+          sef24h += entry._sefCount || 0;
+          gen24h += entry._genCount || 0;
+        }
+      });
+
+      if (active) {
+        processRooms(active);
+        let currentHasSef = false;
+        let activeSef = 0;
+        let activeGen = 0;
+        Object.entries(active || {}).forEach(([rid, chs]: [string, any]) => {
+          if (rid === '_nf') return;
+          const vals: any[] = Array.isArray(chs) ? chs : Object.values(chs || {});
+          vals.forEach((e: any) => {
+            if (e.type === 'sef') { activeSef++; currentHasSef = true; }
+            if (e.type === 'gen') { activeGen++; currentHasSef = true; }
+          });
+        });
+        if (currentHasSef) activeSpawns++;
+        sef24h += activeSef;
+        gen24h += activeGen;
+      }
+
       const totalSessions = historyList.length + (active ? 1 : 0);
       const totalGlobalHits = totalSef + totalGen;
       const sefProb = totalFoundEntries > 0 ? ((totalSef / totalFoundEntries) * 100).toFixed(1) : '0';
       const avgSef = totalSessions > 0 ? (totalSef / totalSessions).toFixed(1) : '0';
-      
-      setStats(prev => ({ 
+
+      setStats(prev => ({
         ...prev,
-        spawnCount: totalSef, 
+        spawnCount: totalSef,
         sefPercentage: sefProb,
         avgPerSpawn: avgSef,
         chStats: {
@@ -649,11 +708,14 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
           globalGenPerc: totalGlobalHits > 0 ? ((totalGen / totalGlobalHits) * 100).toFixed(0) : '0',
           globalSefCount: totalSef,
           globalGenCount: totalGen,
+          sef24h,
+          gen24h,
           globalRooms,
           spawnCount: totalSef,
           globalTotalAttempts: totalFoundEntries,
           globalTotalSlots: totalAllSlots,
-          totalSessions
+          totalSessions,
+          activeSpawns
         }
       }));
     };
@@ -779,7 +841,7 @@ export default function Dashboard({ setActiveTab }: { setActiveTab?: (tab: strin
             <div onClick={() => setShowSpawnStatsModal(true)} className="bg-slate-900/40 border border-white/5 p-6 rounded-2xl hover:border-white/10 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer group">
               <Activity className="w-5 h-5 mb-4 opacity-50 group-hover:opacity-100 transition-opacity text-emerald-400" />
               <div className="flex flex-col">
-                <div className="text-4xl font-black mb-1 text-emerald-400">{stats.spawnCount}</div>
+                <div className="text-4xl font-black mb-1 text-emerald-400 tabular-nums">{stats.spawnCount}</div>
                 <div className="text-[10px] uppercase tracking-widest font-black text-emerald-400">ICE BOSSES ({stats.sefPercentage}%)</div>
                 <div className="text-[10px] font-bold text-slate-600 mt-1">~{stats.avgPerSpawn} / spawn</div>
               </div>

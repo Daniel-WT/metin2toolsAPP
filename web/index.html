@@ -204,6 +204,23 @@
     </div>
   </div>
 </div>
+<!-- PENDING GATE -->
+<div id="pending-gate" style="display:none;position:fixed;inset:0;z-index:99997;background:#0a0b0e;align-items:center;justify-content:center;font-family:'Inter',sans-serif;padding:24px;flex-direction:column;gap:32px;">
+  <div style="position:absolute;inset:0;background:radial-gradient(circle at center, rgba(200,150,46,0.05) 0%, transparent 70%);pointer-events:none;"></div>
+  <div style="position:relative;z-index:1;text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px;max-width:400px;">
+    <div style="width:72px;height:72px;border-radius:20px;background:rgba(200,150,46,0.1);border:1px solid rgba(200,150,46,0.2);display:flex;align-items:center;justify-content:center;">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c8962e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    </div>
+    <div>
+      <h2 style="margin:0;color:#fff;font-size:22px;font-weight:900;letter-spacing:-0.5px;">Cerere în așteptare</h2>
+      <p style="margin:10px 0 0;color:rgba(255,255,255,0.3);font-size:13px;line-height:1.6;">Contul tău este în așteptarea aprobării unui administrator.</p>
+    </div>
+    <button onclick="handleLogout()" style="display:flex;align-items:center;gap:8px;padding:10px 24px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:rgba(255,255,255,0.5);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.05em;text-transform:uppercase;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Deconectare
+    </button>
+  </div>
+</div>
 <style>
 @keyframes pulse { 0% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.5); opacity: 0.2; } 100% { transform: scale(1); opacity: 0.5; } }
 .admin-view { animation: fadeIn 0.3s ease-out; }
@@ -1442,6 +1459,25 @@
     <div class="changelog-list">
       <div class="changelog-entry">
         <div class="changelog-meta">
+          <span class="changelog-version">v5.5.1</span>
+          <span class="changelog-tag tag-fix">Fix</span>
+        </div>
+        <div class="changelog-item">Alarmele de spawn sunt acum primite doar de membrii echipei, nu de toti utilizatorii.</div>
+        <div class="changelog-item">Fix: aprobarea unui cont nu mai afiseaza alerta de ban daca emailul era in lista de banati.</div>
+        <div class="changelog-item">Fix: cererile de cont apar corect in Admin Panel (nu mai depind de account_requests).</div>
+        <div class="changelog-item">Fix: stergerea unui cont il elimina acum si din Firebase Auth (URL Worker corectat).</div>
+      </div>
+      <div class="changelog-entry">
+        <div class="changelog-meta">
+          <span class="changelog-version">v5.5.0</span>
+          <span class="changelog-tag tag-feature">Feature</span>
+        </div>
+        <div class="changelog-item">Aprobare conturi: conturile noi necesita aprobare de la Super-Admin inainte de accesare.</div>
+        <div class="changelog-item">Ecran asteptare: utilizatorii cu cerere pendinta vad un mesaj dedicat pana la aprobare.</div>
+        <div class="changelog-item">Admin Panel: tab-ul Cereri afiseaza acum si cereri de cont, nu doar cereri de echipa.</div>
+      </div>
+      <div class="changelog-entry">
+        <div class="changelog-meta">
           <span class="changelog-version">v5.4.2</span>
           <span class="changelog-tag tag-fix">Fix</span>
         </div>
@@ -1973,7 +2009,7 @@
       <span id="connLabel"></span>
     </div>
   </div>
-  <div class="footer-status-center">v5.0.0</div>
+  <div class="footer-status-center">v5.5.1</div>
   <div class="footer-status-right">
     <div class="footer-online-wrap" id="footerOnlineWrap" style="display:none">
       <button class="footer-firebase-btn footer-online-btn" id="btnOnlineUsers" title="Utilizatori online">0 online</button>

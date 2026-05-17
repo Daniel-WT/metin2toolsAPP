@@ -6,7 +6,7 @@ import {
   onAuthStateChanged,
   User as FirebaseUser
 } from 'firebase/auth';
-import { ref, get, onValue } from 'firebase/database';
+import { ref, get, onValue, set } from 'firebase/database';
 import { auth, db } from '../lib/firebase';
 
 interface UserProfile {
@@ -16,6 +16,7 @@ interface UserProfile {
   color?: string;
   teamId?: string | null;
   role?: string;
+  status?: string;
   isSuperAdmin?: boolean;
   permissions?: { serverStatus?: boolean; adminPanel?: boolean; spawn?: boolean; skin?: boolean; inventory?: boolean; status?: boolean; alerte?: boolean; transfers?: boolean; checklist?: boolean; alarms?: boolean; tweaks?: boolean; [key: string]: boolean | undefined };
 }
@@ -53,36 +54,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 1. Listen for Profile Changes
     return onValue(userRef, async (snapshot) => {
       try {
-        // Security Check: Ban List
-        if (firebaseUser.email) {
-          const emailKey = firebaseUser.email.replace(/\./g, '_');
-          const banSnapshot = await get(ref(db, `banned_emails/${emailKey}`));
-          if (banSnapshot.exists()) {
-            alert('Acest cont a fost banat de către un administrator.');
+        // Wait for profile write to complete for new registrations (race condition fix)
+        // On first onValue fire after register(), profile might not exist yet
+        const isSuperAdmin = firebaseUser.email === 'postavarudaniel@gmail.com';
+        if (!snapshot.exists() && !isSuperAdmin) return;
+
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+
+          // Status check BEFORE ban check: pending users go to approval screen
+          if (data.status === 'rejected') {
+            alert('Cererea ta de cont a fost respinsă de un administrator.');
             await signOut(auth);
             setUser(null);
             return;
           }
-        }
 
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          setUser({
+          // Security Check: Ban List (only for approved/existing accounts)
+          if (firebaseUser.email) {
+            const emailKey = firebaseUser.email.replace(/\./g, '_');
+            const banSnapshot = await get(ref(db, `banned_emails/${emailKey}`));
+            if (banSnapshot.exists()) {
+              alert('Acest cont a fost banat de către un administrator.');
+              await signOut(auth);
+              setUser(null);
+              return;
+            }
+          }
+
+          setUser(prev => ({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             ...data,
             teamId: data.currentTeamId || data.teamId || null,
-            isSuperAdmin: firebaseUser.email === 'postavarudaniel@gmail.com' || !!data.isSuperAdmin,
-            permissions: data.permissions || {}
-          });
+            isSuperAdmin: isSuperAdmin || !!data.isSuperAdmin,
+            // Preserve tab permissions already loaded by the member listener;
+            // overlay fresh user-level permissions (serverStatus, adminPanel) from users/{uid}
+            permissions: { ...(prev?.permissions || {}), ...(data.permissions || {}) }
+          }));
         } else {
-          // New user or no profile in DB yet
+          // Only superadmin reaches here (no DB profile yet)
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             teamId: null,
             color: '#c8962e',
-            isSuperAdmin: firebaseUser.email === 'postavarudaniel@gmail.com'
+            isSuperAdmin: true
           });
         }
       } catch (error) {
@@ -124,11 +141,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data) {
           setUser(prev => {
             if (!prev) return null;
-            // Only update if something actually changed to avoid re-render loops
-            if (JSON.stringify(prev.permissions) === JSON.stringify(data.permissions) && prev.role === data.role) {
+            // Preserve user-level perms (serverStatus, adminPanel) from prev;
+            // fully replace tab perms with fresh data from teams/{teamId}/members/{uid}
+            const newPerms = {
+              serverStatus: prev.permissions?.serverStatus,
+              adminPanel: prev.permissions?.adminPanel,
+              ...(data.permissions || {})
+            };
+            if (JSON.stringify(prev.permissions) === JSON.stringify(newPerms) && prev.role === data.role) {
               return prev;
             }
-            return { ...prev, role: data.role, permissions: data.permissions };
+            return { ...prev, role: data.role, permissions: newPerms };
           });
         }
       });
@@ -174,7 +197,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (email: string, pass: string) => {
-    await createUserWithEmailAndPassword(auth, email, pass);
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    const isSuperAdmin = email === 'postavarudaniel@gmail.com';
+    if (!isSuperAdmin) {
+      const uid = cred.user.uid;
+      await set(ref(db, `users/${uid}`), { email, color: '#c8962e', status: 'pending' });
+    }
   };
 
   const logout = () => signOut(auth);

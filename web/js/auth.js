@@ -61,8 +61,27 @@ window._initAuth = function() {
     userRef.on('value', async (snap) => {
       console.log("[Auth] Profile update received.");
       const data = snap.val() || {};
-      
-      // 1. Check if Banned
+
+      // 1. Wait for profile to be written for new registrations (race condition fix)
+      // On first onValue fire after register, profile might not exist yet
+      if (!snap.exists() && firebaseUser.email !== 'postavarudaniel@gmail.com') return;
+
+      // 2. Status check first — BEFORE ban check
+      // Pending users go to approval screen; rejected users are signed out
+      if (data.status === 'pending') {
+        authGate.style.display = 'none';
+        document.getElementById('pending-gate').style.display = 'flex';
+        document.getElementById('team-gate').style.display = 'none';
+        document.getElementById('app-root').style.display = 'none';
+        return;
+      }
+      if (data.status === 'rejected') {
+        alert('Cererea ta de cont a fost respinsă de un administrator.');
+        await firebase.auth().signOut();
+        return;
+      }
+
+      // 3. Check if Banned (only for approved/existing accounts)
       if (firebaseUser.email) {
         try {
           const emailKey = firebaseUser.email.replace(/\./g, '_');
@@ -75,7 +94,7 @@ window._initAuth = function() {
         } catch (e) {}
       }
 
-      // 2. State Sync
+      // 3. State Sync
       const oldTeamId = window.currentUserProfile?.currentTeamId || window.currentUserProfile?.teamId;
       window.currentUserProfile = {
         uid: firebaseUser.uid,
@@ -104,6 +123,7 @@ window._initAuth = function() {
       if (!teamId) {
         console.log("[Auth] No team found, showing gate.");
         authGate.style.display = 'none';
+        document.getElementById('pending-gate').style.display = 'none';
         document.getElementById('team-gate').style.display = 'flex';
         document.getElementById('app-root').style.display = 'none';
 
@@ -114,6 +134,7 @@ window._initAuth = function() {
       } else {
         console.log("[Auth] Access granted for team:", teamId);
         authGate.style.display = 'none';
+        document.getElementById('pending-gate').style.display = 'none';
         document.getElementById('team-gate').style.display = 'none';
         document.getElementById('app-root').style.display = 'block';
 
@@ -130,12 +151,14 @@ window._initAuth = function() {
 
         // 5. Admin tab visibility — Super-Admin sau permisiunea adminPanel
         var prof = window.currentUserProfile;
-        var canSeeAdmin = prof.isSuperAdmin || !!(prof.permissions && prof.permissions.adminPanel);
+        var canSeeAdmin = !!prof.isSuperAdmin;
         window._isAdmin = canSeeAdmin;
         if (canSeeAdmin) {
           var adminBtn = document.getElementById('tab-btn-admin');
           if (adminBtn) adminBtn.style.display = 'block';
           if (window.AdminModule) window.AdminModule.init();
+          var debugBtn = document.getElementById('btnHistDebug');
+          if (debugBtn) debugBtn.style.display = '';
         }
 
         // 6. App Init (Hide Loader)
@@ -184,7 +207,17 @@ window._initAuth = function() {
       if (isRegisterMode) {
         if (pass.length < 6) return showError("Parola prea scurta (min 6 char).");
         firebase.auth().createUserWithEmailAndPassword(email, pass)
-          .then(user => console.log("Register success:", user))
+          .then(function(cred) {
+            var uid = cred.user.uid;
+            var isSuperAdmin = email === 'postavarudaniel@gmail.com';
+            if (!isSuperAdmin) {
+              return firebase.database().ref('users/' + uid).set({
+                email: email,
+                color: '#c8962e',
+                status: 'pending'
+              });
+            }
+          })
           .catch(err => {
             console.error("Register error:", err);
             showError("Eroare: " + err.message);

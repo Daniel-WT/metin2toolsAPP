@@ -5,7 +5,7 @@ import { db } from '../../lib/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 
-const WORKER_BASE = 'https://metin2tools.pages.dev';
+const WORKER_BASE = 'https://metin2.m2tools.workers.dev';
 const POLL_INTERVAL = 3000;
 const STALE_MS = 120_000;
 const MY_CLIENT_ID = Math.random().toString(36).slice(2);

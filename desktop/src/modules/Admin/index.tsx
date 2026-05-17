@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ShieldCheck, XCircle, CheckCircle2, Clock, Mail, Users, Trash2, Search, UserPlus, Power, Ban, ScrollText, Lock, Plus } from 'lucide-react';
-import { ref, onValue, update, remove, set, get } from 'firebase/database';
+import { ref, onValue, update, remove, set, get, query, limitToLast, orderByChild } from 'firebase/database';
 import { db } from '../../lib/firebase';
 import { cn } from '../../lib/utils';
 import ConfirmModal, { appConfirm } from '../../components/ConfirmModal';
@@ -16,11 +16,6 @@ interface TeamRequest {
   userEmail: string;
   requestedBy: string;
   timestamp: number;
-}
-
-interface AdminPermissions {
-  serverStatus?: boolean;
-  adminPanel?: boolean;
 }
 
 interface TabPermissions {
@@ -51,14 +46,10 @@ interface UserProfile {
   teamId?: string;
   currentTeamId?: string;
   role?: string;
+  status?: string;
   isSuperAdmin?: boolean;
-  permissions?: AdminPermissions;
+  permissions?: Record<string, boolean | undefined>;
 }
-
-const ADMIN_PERMISSIONS: { key: keyof AdminPermissions; label: string }[] = [
-  { key: 'serverStatus', label: 'Server Status' },
-  { key: 'adminPanel',   label: 'Admin Panel'   },
-];
 
 const TAB_PERMISSIONS: { key: keyof TabPermissions; label: string }[] = [
   { key: 'spawn',     label: 'Spawn'       },
@@ -106,6 +97,8 @@ export default function AdminPanel() {
   const [newDopersMins, setNewDopersMins] = useState(0);
   const { user } = useAuth();
   const teamId = user?.teamId || (user as any)?.currentTeamId || '';
+  const isRootAdmin = user?.email === 'postavarudaniel@gmail.com';
+  const pendingUsers = users.filter(u => u.status === 'pending');
   const [confirmState, setConfirmState] = useState<{
     isOpen: boolean;
     title: string;
@@ -142,16 +135,21 @@ export default function AdminPanel() {
 
       const all: UserProfile[] = Object.entries(data).map(([uid, val]: [string, any]) => ({ ...val, uid }));
 
+      const result = new Map<string, UserProfile>();
       const byEmail = new Map<string, UserProfile>();
       all.forEach(u => {
-        if (!u.email) return;
+        if (!u.email) {
+          result.set(u.uid, u);
+          return;
+        }
         const existing = byEmail.get(u.email);
         const rawData = data[u.uid] as any;
         const isCanonical = rawData?.uid === u.uid;
         if (!existing || isCanonical) byEmail.set(u.email, u);
       });
+      byEmail.forEach(u => result.set(u.uid, u));
 
-      setUsers(Array.from(byEmail.values()));
+      setUsers(Array.from(result.values()));
     });
 
     const unsubBans = onValue(bansRef, (snapshot) => {
@@ -265,8 +263,47 @@ export default function AdminPanel() {
       }
     });
 
-    return () => { unsubScrape(); unsubDetect(); unsubTf(); };
+    // Spawn auto-reset events (written by winning client only, via Firebase transaction)
+    const syslogRef = query(ref(db, 'syslog'), orderByChild('ts'), limitToLast(50));
+    const seenSyslog = new Set<string>();
+    const unsubSyslog = onValue(syslogRef, (snap) => {
+      snap.forEach(child => {
+        if (seenSyslog.has(child.key!)) return;
+        seenSyslog.add(child.key!);
+        const val = child.val();
+        if (!val) return;
+        if (val.event === 'spawn_auto_reset') {
+          const time = new Date(val.ts).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          addLog(`[${time}] Spawn reset automat T=0 · echipă ${val.teamId} · → ${val.nextType ?? '?'}`, 'spawn');
+        }
+      });
+    });
+
+    return () => { unsubScrape(); unsubDetect(); unsubTf(); unsubSyslog(); };
   }, [addLog]);
+
+  const handleApproveAccount = async (uid: string) => {
+    try {
+      const userSnap = await get(ref(db, `users/${uid}`));
+      const userData = userSnap.val();
+      const updates: Record<string, any> = { [`users/${uid}/status`]: 'approved' };
+      if (userData?.email) {
+        const emailKey = userData.email.replace(/\./g, '_');
+        updates[`banned_emails/${emailKey}`] = null;
+      }
+      await update(ref(db), updates);
+    } catch (err) {
+      console.error("Account approval failed:", err);
+    }
+  };
+
+  const handleRejectAccount = async (uid: string) => {
+    try {
+      await update(ref(db, `users/${uid}`), { status: 'rejected' });
+    } catch (err) {
+      console.error("Account rejection failed:", err);
+    }
+  };
 
   const handleApprove = async (request: TeamRequest) => {
     try {
@@ -302,12 +339,12 @@ export default function AdminPanel() {
     await remove(ref(db, `banned_emails/${emailKey}`));
   };
 
-  const handleTogglePermission = async (uid: string, permission: keyof AdminPermissions, currentValue: boolean) => {
+  const handleToggleSuperAdmin = async (uid: string, isCurrently: boolean) => {
+    if (user?.email !== 'postavarudaniel@gmail.com') return;
     try {
-      await update(ref(db, `users/${uid}/permissions`), { [permission]: !currentValue });
+      await update(ref(db, `users/${uid}`), { isSuperAdmin: !isCurrently });
     } catch (err) {
-      console.error('[Admin] togglePermission FAILED:', err);
-      alert('Eroare: ' + (err as Error).message);
+      console.error('[Admin] toggleSuperAdmin FAILED:', err);
     }
   };
 
@@ -405,17 +442,34 @@ export default function AdminPanel() {
     setConfirmState({
       isOpen: true,
       title: 'Ștergere Definitivă Cont',
-      message: 'ATENȚIE! Această acțiune va șterge definitiv DATELE și PROFILUL acestui utilizator. Nu poți anula această acțiune. Ești absolut sigur?',
+      message: 'ATENȚIE! Această acțiune va șterge definitiv contul din Firebase Auth și toate datele din baza de date. Nu poți anula această acțiune. Ești absolut sigur?',
       variant: 'danger',
       onConfirm: async () => {
         try {
           const userSnap = await get(ref(db, `users/${uid}`));
           const userData = userSnap.val();
+
+          // Delete from Firebase Auth via worker
+          const { getAuth } = await import('firebase/auth');
+          const idToken = await getAuth().currentUser?.getIdToken();
+          if (idToken) {
+            try {
+              const workerRes = await fetch('https://metin2.m2tools.workers.dev/api/delete-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid, idToken })
+              });
+              const workerData = await workerRes.json().catch(() => ({}));
+              if (!workerRes.ok) console.error('[Admin] Worker delete-user failed:', workerRes.status, workerData);
+              else console.log('[Admin] Firebase Auth deleted via worker.');
+            } catch (e) { console.error('[Admin] Worker fetch error:', e); }
+          }
+
+          // Delete from RTDB
           const updates: any = {};
           if (userData?.teamId) updates[`teams/${userData.teamId}/members/${uid}`] = null;
           updates[`users/${uid}`] = null;
           updates[`presence/${uid}`] = null;
-          // Ban email so active sessions get kicked out immediately
           if (userData?.email) {
             const emailKey = userData.email.replace(/\./g, '_');
             updates[`banned_emails/${emailKey}`] = userData.email;
@@ -465,47 +519,91 @@ export default function AdminPanel() {
           <div className="py-20 flex justify-center"><div className="w-8 h-8 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" /></div>
         ) : activeTab === 'requests' ? (
           <>
-            {requests.length === 0 ? (
+            {pendingUsers.length === 0 && requests.length === 0 ? (
               <div className="card py-16 text-center">
                  <ShieldCheck className="w-12 h-12 text-slate-700 mx-auto mb-4" />
                  <p className="text-sm text-slate-500">Nicio cerere în așteptare.</p>
               </div>
             ) : (
-              requests.map((req) => (
-                <div key={req.id} className="card flex items-center justify-between group hover:border-accent-gold/20 transition-all">
-                  <div className="flex items-center gap-6">
-                    <div className="p-3 rounded-2xl bg-accent-gold/10 border border-accent-gold/20">
-                      <Users className="w-6 h-6 text-accent-gold" />
+              <>
+                {pendingUsers.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                      <UserPlus className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cereri cont ({pendingUsers.length})</span>
                     </div>
-                    <div>
-                       <div className="flex items-center gap-3">
-                          <h3 className="font-bold text-slate-100">{req.name}</h3>
-                          <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-black text-slate-500 uppercase tracking-widest">{req.id}</span>
-                       </div>
-                       <div className="flex items-center gap-4 mt-1 text-[11px] text-slate-500 font-medium">
-                          <span className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {req.userEmail}</span>
-                          <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(req.timestamp).toLocaleDateString()}</span>
-                       </div>
+                    {pendingUsers.map((req) => (
+                      <div key={req.uid} className="card flex items-center justify-between group hover:border-blue-500/20 transition-all">
+                        <div className="flex items-center gap-6">
+                          <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                            <UserPlus className="w-6 h-6 text-blue-400" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-slate-100">{req.email}</h3>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleRejectAccount(req.uid)}
+                            className="p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
+                            title="Respinge"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleApproveAccount(req.uid)}
+                            className="px-6 py-3 rounded-xl bg-blue-500 text-white font-black text-[11px] uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all shadow-xl shadow-blue-500/10"
+                          >
+                            <CheckCircle2 className="w-4 h-4" /> Aprobă Cont
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {requests.length > 0 && (
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center gap-2 px-1">
+                      <Users className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cereri echipă ({requests.length})</span>
                     </div>
+                    {requests.map((req) => (
+                      <div key={req.id} className="card flex items-center justify-between group hover:border-accent-gold/20 transition-all">
+                        <div className="flex items-center gap-6">
+                          <div className="p-3 rounded-2xl bg-accent-gold/10 border border-accent-gold/20">
+                            <Users className="w-6 h-6 text-accent-gold" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <h3 className="font-bold text-slate-100">{req.name}</h3>
+                              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[9px] font-black text-slate-500 uppercase tracking-widest">{req.id}</span>
+                            </div>
+                            <div className="flex items-center gap-4 mt-1 text-[11px] text-slate-500 font-medium">
+                              <span className="flex items-center gap-1.5"><Mail className="w-3 h-3" /> {req.userEmail}</span>
+                              <span className="flex items-center gap-1.5"><Clock className="w-3 h-3" /> {new Date(req.timestamp).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleReject(req.id)}
+                            className="p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
+                            title="Reject"
+                          >
+                            <XCircle className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleApprove(req)}
+                            className="px-6 py-3 rounded-xl bg-accent-gold text-bg-primary font-black text-[11px] uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all shadow-xl shadow-accent-gold/10"
+                          >
+                            <CheckCircle2 className="w-4 h-4" /> Aprobă Echipa
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleReject(req.id)}
-                      className="p-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-all"
-                      title="Reject"
-                    >
-                      <XCircle className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleApprove(req)}
-                      className="px-6 py-3 rounded-xl bg-accent-gold text-bg-primary font-black text-[11px] uppercase tracking-widest flex items-center gap-2 hover:scale-105 transition-all shadow-xl shadow-accent-gold/10"
-                    >
-                      <CheckCircle2 className="w-4 h-4" /> Aprobă Echipa
-                    </button>
-                  </div>
-                </div>
-              ))
+                )}
+              </>
             )}
           </>
         ) : activeTab === 'teams' ? (
@@ -546,9 +644,9 @@ export default function AdminPanel() {
 
                     return [...memberUids].map(uid => {
                       const user = users.find(u => u.uid === uid);
-                      const displayName = user?.name || user?.email || uid.slice(0, 8);
-                      const initial = displayName[0].toUpperCase();
                       const memberData: MemberData = team.members?.[uid] || {};
+                      const displayName = user?.name || memberData.name || user?.email || uid.slice(0, 8);
+                      const initial = displayName[0].toUpperCase();
                       const isLeader = uid === ownerId || memberData.role === 'leader';
                       const isAdmin = !isLeader && memberData.role === 'admin';
                       const tabPerms = memberData.permissions || {};
@@ -652,10 +750,10 @@ export default function AdminPanel() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {users.filter(u => u && u.email && u.email.toLowerCase().includes(searchTerm.toLowerCase())).map(user => {
+              {users.filter(u => u && (!searchTerm || (u.email || u.name || '').toLowerCase().includes(searchTerm.toLowerCase()))).map(user => {
                 const isUserBanned = bannedUids.includes(user.uid);
-                const isProtected = !!user.isSuperAdmin || user.email === 'postavarudaniel@gmail.com';
-                const hasAnyPermission = Object.values(user.permissions || {}).some(Boolean);
+                const isProtected = user.email === 'postavarudaniel@gmail.com';
+                const isSA = !!user.isSuperAdmin;
 
                 const userTeamId = user.teamId || user.currentTeamId;
                 const userTeam = userTeamId ? teams.find(t => t.id === userTeamId) : null;
@@ -671,7 +769,7 @@ export default function AdminPanel() {
                         <div className={cn(
                           "w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0",
                           isProtected ? "bg-accent-gold text-bg-primary shadow-[0_0_15px_rgba(200,150,46,0.2)]" :
-                          hasAnyPermission ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" :
+                          isSA ? "bg-accent-gold/20 text-accent-gold border border-accent-gold/30" :
                           "bg-white/5 text-slate-400"
                         )}>
                           {(user.name || user.email || '?')[0].toUpperCase()}
@@ -684,10 +782,8 @@ export default function AdminPanel() {
                             <p className="text-[9px] text-slate-600 truncate" title={user.email}>{user.email}</p>
                           )}
                           <p className="text-[9px] uppercase font-black">
-                            {isProtected ? (
-                              <span className="text-accent-gold">Super-Admin</span>
-                            ) : hasAnyPermission ? (
-                              <span className="text-blue-400">Admin</span>
+                            {(isProtected || isSA) ? (
+                              <span className={isProtected ? "text-accent-gold" : "text-accent-gold/60"}>Super-Admin</span>
                             ) : (
                               <span className="text-slate-500">{user.role || 'Utilizator'}</span>
                             )}
@@ -701,29 +797,18 @@ export default function AdminPanel() {
                       )}
                     </div>
 
-                    {!isProtected && (
-                      <div className="space-y-2">
-                        <p className="text-[8px] uppercase font-black tracking-widest text-slate-600">Acces</p>
-                        <div className="flex flex-wrap gap-2">
-                          {ADMIN_PERMISSIONS.map(perm => {
-                            const active = !!user.permissions?.[perm.key];
-                            return (
-                              <button
-                                key={perm.key}
-                                onClick={() => handleTogglePermission(user.uid, perm.key, active)}
-                                className={cn(
-                                  'px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all',
-                                  active
-                                    ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
-                                    : 'bg-white/[0.03] border-white/10 text-slate-600 hover:text-slate-400 hover:border-white/20'
-                                )}
-                              >
-                                {perm.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                    {isRootAdmin && !isProtected && (
+                      <button
+                        onClick={() => handleToggleSuperAdmin(user.uid, isSA)}
+                        className={cn(
+                          'w-full px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all',
+                          isSA
+                            ? 'bg-accent-gold/10 border-accent-gold/25 text-accent-gold hover:bg-red-500/10 hover:border-red-500/20 hover:text-red-400'
+                            : 'bg-white/[0.03] border-white/10 text-slate-600 hover:border-accent-gold/30 hover:text-accent-gold/60'
+                        )}
+                      >
+                        {isSA ? 'Revocare Super-Admin' : 'Promovare Super-Admin'}
+                      </button>
                     )}
 
                     {userTeam && (
@@ -897,6 +982,7 @@ export default function AdminPanel() {
                       log.type === 'detect' ? 'text-violet-400' :
                       log.type === 'data'   ? 'text-emerald-400' :
                       log.type === 'error'  ? 'text-red-400' :
+                      log.type === 'spawn'  ? 'text-cyan-400' :
                       'text-slate-400';
                     const time = new Date(log.ts).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     return (

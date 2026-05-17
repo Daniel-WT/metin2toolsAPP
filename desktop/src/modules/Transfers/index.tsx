@@ -72,7 +72,7 @@ interface SnapshotDiff {
 }
 
 const SERVERS = ['Romania', 'Tara Romaneasca', 'Magyarorszag', 'Cesko', 'Polska'];
-const WORKER_BASE = 'https://metin2tools.pages.dev';
+const WORKER_BASE = 'https://metin2.m2tools.workers.dev';
 const DAYS_RO = ['Duminica', 'Luni', 'Marti', 'Miercuri', 'Joi', 'Vineri', 'Sambata'];
 
 

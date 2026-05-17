@@ -32,6 +32,7 @@ window.AdminModule = {
         database.ref('users').on('value', snap => {
             this.state.users = snap.val() || {};
             if (this.state.activeTab === 'users') this.renderUsers();
+            if (this.state.activeTab === 'requests') this.renderRequests();
             this.renderTeams(); // Also re-render teams to update member lists
         });
 
@@ -39,6 +40,7 @@ window.AdminModule = {
         database.ref('teams').on('value', snap => {
             this.state.teams = snap.val() || {};
             if (this.state.activeTab === 'teams') this.renderTeams();
+            if (this.state.activeTab === 'users') this.renderUsers();
         });
 
         // Team Requests listener
@@ -111,11 +113,9 @@ window.AdminModule = {
         grid.innerHTML = users.map(([uid, u]) => {
             if (!u) return '';
             const isBanned = this.isEmailBanned(u.email);
-            const isSuperAdmin = u.isSuperAdmin || u.email === 'postavarudaniel@gmail.com';
+            const isProtected = u.email === 'postavarudaniel@gmail.com';
+            const isSuperAdmin = !!u.isSuperAdmin || isProtected;
             const isSelf = u.uid === window.currentUserProfile?.uid || u.email === window.currentUserProfile?.email;
-            const hasServerStatus = !!(u.permissions && u.permissions.serverStatus);
-            const hasAdminPanel  = !!(u.permissions && u.permissions.adminPanel);
-            const hasAnyPerm = hasServerStatus || hasAdminPanel;
 
             // Team role lookup — validate against teams node, fallback to searching all teams
             const rawTeamId = u.currentTeamId || u.teamId;
@@ -127,25 +127,24 @@ window.AdminModule = {
             }
             const teamMember = teamId ? this.state.teams[teamId]?.members?.[uid] : null;
             const teamRole = teamMember?.role || null;
+            const teamName = teamId ? (this.state.teams[teamId]?.metadata?.name || this.state.teams[teamId]?.name || teamId) : null;
             const teamRoleBadge = teamRole === 'leader'
                 ? `<span style="font-size:8px;background:rgba(200,150,46,0.12);color:#c8962e;padding:1px 7px;border-radius:5px;font-weight:900;letter-spacing:.05em;">LIDER</span>`
                 : '';
             const teamMemberPerms = teamMember?.permissions || {};
 
-            const avatarBg = isSuperAdmin ? '#c8962e' : hasAnyPerm ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)';
-            const avatarColor = isSuperAdmin ? '#000' : hasAnyPerm ? '#93c5fd' : '#fff';
+            const avatarBg = isProtected ? '#c8962e' : isSuperAdmin ? 'rgba(200,150,46,0.18)' : 'rgba(255,255,255,0.05)';
+            const avatarColor = isProtected ? '#000' : isSuperAdmin ? '#c8962e' : '#fff';
             const borderColor = isBanned ? 'rgba(224,82,82,0.25)' : isSuperAdmin ? 'rgba(200,150,46,0.2)' : 'rgba(255,255,255,0.06)';
-            const roleLabel = isSuperAdmin ? '<span style="font-size:9px;background:rgba(200,150,46,0.15);color:#c8962e;padding:2px 8px;border-radius:6px;font-weight:900;letter-spacing:.05em;">SUPER-ADMIN</span>'
-                            : hasAnyPerm    ? '<span style="font-size:9px;background:rgba(59,130,246,0.15);color:#93c5fd;padding:2px 8px;border-radius:6px;font-weight:900;letter-spacing:.05em;">ADMIN</span>'
+            const roleLabel = isProtected ? '<span style="font-size:9px;background:rgba(200,150,46,0.15);color:#c8962e;padding:2px 8px;border-radius:6px;font-weight:900;letter-spacing:.05em;">SUPER-ADMIN</span>'
+                            : isSuperAdmin ? '<span style="font-size:9px;background:rgba(200,150,46,0.08);color:rgba(200,150,46,0.7);padding:2px 8px;border-radius:6px;font-weight:900;letter-spacing:.05em;">SUPER-ADMIN</span>'
                             : '';
 
-            const canManage = !!window.currentUserProfile?.isSuperAdmin;
-
-            const permRow = !isSuperAdmin ? `
-                <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;">
-                    <span style="font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.2);align-self:center;">Acces:</span>
-                    <span onclick="AdminModule.togglePermission('${uid}','serverStatus')" style="${canManage ? 'cursor:pointer;' : ''}font-size:9px;padding:3px 10px;border-radius:6px;font-weight:900;letter-spacing:.04em;border:1px solid ${hasServerStatus ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'};background:${hasServerStatus ? 'rgba(52,211,153,0.08)' : 'transparent'};color:${hasServerStatus ? '#34d399' : 'rgba(255,255,255,0.2)'};" title="${canManage ? 'Click pentru a togglui' : ''}">Server Status</span>
-                    <span onclick="AdminModule.togglePermission('${uid}','adminPanel')" style="${canManage ? 'cursor:pointer;' : ''}font-size:9px;padding:3px 10px;border-radius:6px;font-weight:900;letter-spacing:.04em;border:1px solid ${hasAdminPanel ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'};background:${hasAdminPanel ? 'rgba(52,211,153,0.08)' : 'transparent'};color:${hasAdminPanel ? '#34d399' : 'rgba(255,255,255,0.2)'};" title="${canManage ? 'Click pentru a togglui' : ''}">Admin Panel</span>
+            const canManage = this._canManage();
+            const canRoot = this._isRoot();
+            const saBtn = !isProtected && canRoot ? `
+                <div style="margin-top:12px;">
+                    <span onclick="AdminModule.toggleSuperAdmin('${uid}')" style="display:block;text-align:center;cursor:pointer;font-size:9px;padding:5px 10px;border-radius:8px;font-weight:900;letter-spacing:.04em;border:1px solid ${isSuperAdmin ? 'rgba(200,150,46,0.35)' : 'rgba(255,255,255,0.1)'};background:${isSuperAdmin ? 'rgba(200,150,46,0.1)' : 'rgba(255,255,255,0.02)'};color:${isSuperAdmin ? '#c8962e' : 'rgba(255,255,255,0.3)'};">${isSuperAdmin ? 'Revocare Super-Admin' : 'Promovare Super-Admin'}</span>
                 </div>` : '';
 
             const tabPermRow = !isSuperAdmin && teamId && canManage ? `
@@ -194,12 +193,12 @@ window.AdminModule = {
                         <div style="text-align:right;flex-shrink:0;">
                             <span style="font-size:9px;color:rgba(255,255,255,0.2);text-transform:uppercase;font-weight:900;letter-spacing:.06em;">Echipă</span>
                             <div style="display:flex;align-items:center;gap:5px;justify-content:flex-end;margin-top:2px;">
-                                <p style="margin:0;font-size:12px;color:#c8962e;font-weight:700;">${teamId || '—'}</p>
+                                <p style="margin:0;font-size:12px;color:#c8962e;font-weight:700;">${teamName || '—'}</p>
                                 ${teamRoleBadge}
                             </div>
                         </div>
                     </div>
-                    ${permRow}
+                    ${saBtn}
                     ${tabPermRow}
                     ${actionButtons}
                 </div>
@@ -290,48 +289,86 @@ window.AdminModule = {
         const grid = document.getElementById('adminRequestGrid');
         if (!grid) return;
 
-        const requests = Object.entries(this.state.requests);
+        const accountReqs = Object.entries(this.state.users).filter(([uid, u]) => u && u.status === 'pending');
+        const teamReqs = Object.entries(this.state.requests);
 
-        if (requests.length === 0) {
+        if (accountReqs.length === 0 && teamReqs.length === 0) {
             grid.innerHTML = `<div class="admin-empty-state"><p>Nicio cerere în așteptare.</p></div>`;
             return;
         }
 
-        grid.innerHTML = requests.map(([id, req]) => `
-            <div class="card" style="padding: 20px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; align-items:center; gap:16px;">
-                    <div style="width:48px; height:48px; border-radius:12px; background:rgba(200,150,46,0.1); border:1px solid rgba(200,150,46,0.2); display:flex; align-items:center; justify-content:center; color:#c8962e;">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                    </div>
-                    <div>
-                        <div style="display:flex; align-items:center; gap:8px;">
-                            <h4 style="margin:0; color:#fff;">${req.name}</h4>
-                            <span style="font-size:9px; color:rgba(255,255,255,0.3); font-weight:900; text-transform:uppercase;">REQ: ${id}</span>
+        var html = '';
+
+        if (accountReqs.length > 0) {
+            html += `<div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,0.25);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                Cereri cont (${accountReqs.length})</div>`;
+            html += accountReqs.map(([uid, u]) => `
+                <div class="card" style="padding:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(96,165,250,0.1);border-radius:16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div style="display:flex;align-items:center;gap:16px;">
+                        <div style="width:48px;height:48px;border-radius:12px;background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);display:flex;align-items:center;justify-content:center;color:#60a5fa;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
                         </div>
-                        <p style="margin:4px 0 0; font-size:12px; color:rgba(255,255,255,0.4);">Solicitat de: ${req.userEmail}</p>
+                        <div>
+                            <h4 style="margin:0;color:#fff;font-size:14px;">${u.email || uid}</h4>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button onclick="AdminModule.rejectAccount('${uid}')" style="background:rgba(224,82,82,0.1);color:#e05252;border:1px solid rgba(224,82,82,0.2);padding:10px 16px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;">Respinge</button>
+                        <button onclick="AdminModule.approveAccount('${uid}')" style="background:#60a5fa;color:#0a0b0e;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Aprobă Cont</button>
                     </div>
                 </div>
-                <div style="display:flex; gap:10px;">
-                    <button onclick="AdminModule.rejectTeam('${id}')" style="background:rgba(224,82,82,0.1); color:#e05252; border:1px solid rgba(224,82,82,0.2); padding:10px 16px; border-radius:10px; cursor:pointer; font-weight:700; font-size:12px;">Reject</button>
-                    <button onclick="AdminModule.approveTeam('${id}')" style="background:#c8962e; color:#0a0b0e; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:900; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Approve</button>
+            `).join('');
+        }
+
+        if (teamReqs.length > 0) {
+            html += `<div style="font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,0.25);margin:${accountReqs.length > 0 ? '20px' : '0'} 0 10px;display:flex;align-items:center;gap:8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Cereri echipă (${teamReqs.length})</div>`;
+            html += teamReqs.map(([id, req]) => `
+                <div class="card" style="padding:20px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <div style="display:flex;align-items:center;gap:16px;">
+                        <div style="width:48px;height:48px;border-radius:12px;background:rgba(200,150,46,0.1);border:1px solid rgba(200,150,46,0.2);display:flex;align-items:center;justify-content:center;color:#c8962e;">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                        </div>
+                        <div>
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <h4 style="margin:0;color:#fff;">${req.name}</h4>
+                                <span style="font-size:9px;color:rgba(255,255,255,0.3);font-weight:900;text-transform:uppercase;">REQ: ${id}</span>
+                            </div>
+                            <p style="margin:4px 0 0;font-size:12px;color:rgba(255,255,255,0.4);">Solicitat de: ${req.userEmail}</p>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;">
+                        <button onclick="AdminModule.rejectTeam('${id}')" style="background:rgba(224,82,82,0.1);color:#e05252;border:1px solid rgba(224,82,82,0.2);padding:10px 16px;border-radius:10px;cursor:pointer;font-weight:700;font-size:12px;">Reject</button>
+                        <button onclick="AdminModule.approveTeam('${id}')" style="background:#c8962e;color:#0a0b0e;border:none;padding:10px 20px;border-radius:10px;cursor:pointer;font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:1px;">Approve</button>
+                    </div>
                 </div>
-            </div>
-        `).join('');
+            `).join('');
+        }
+
+        grid.innerHTML = html;
     },
 
     // --- Actions ---
 
     _canManage: function() {
         const p = window.currentUserProfile;
-        return !!(p && (p.isSuperAdmin || p.permissions?.adminPanel));
+        return !!(p && p.isSuperAdmin);
     },
 
-    togglePermission: async function(uid, permission) {
-        if (!this._canManage()) return;
-        const user = this.state.users[uid];
-        if (!user) return;
-        const currentValue = !!(user.permissions && user.permissions[permission]);
-        await firebase.database().ref(`users/${uid}/permissions`).update({ [permission]: !currentValue });
+    _isRoot: function() {
+        return window.currentUserProfile?.email === 'postavarudaniel@gmail.com';
+    },
+
+    toggleSuperAdmin: async function(uid) {
+        if (!this._isRoot()) return;
+        const u = this.state.users[uid];
+        if (!u) return;
+        const current = !!u.isSuperAdmin;
+        if (!current && !confirm('Promovezi acest utilizator la Super-Admin?')) return;
+        if (current && !confirm('Revoci drepturile de Super-Admin?')) return;
+        await firebase.database().ref(`users/${uid}`).update({ isSuperAdmin: !current });
     },
 
     toggleTabPermission: async function(uid, permKey) {
@@ -346,7 +383,7 @@ window.AdminModule = {
 
     toggleTeamTabPerm: async function(teamId, uid, permKey) {
         const p = window.currentUserProfile;
-        if (!p || (!p.isSuperAdmin && !p.permissions?.adminPanel)) return;
+        if (!p || !p.isSuperAdmin) return;
         const currentValue = !!(this.state.teams[teamId]?.members?.[uid]?.permissions?.[permKey]);
         await firebase.database().ref(`teams/${teamId}/members/${uid}/permissions/${permKey}`).set(!currentValue);
     },
@@ -380,11 +417,40 @@ window.AdminModule = {
 
     deleteAccount: async function(uid) {
         if (!window.currentUserProfile?.isSuperAdmin) return;
-        if (!confirm("ATENȚIE! Ești pe cale să ștergi DEFINITIV acest cont din baza de date. Această acțiune nu poate fi anulată. Continui?")) return;
-        
-        // This only removes from RTDB. Firebase Auth deletion requires Admin SDK or user re-auth.
-        await firebase.database().ref(`users/${uid}`).remove();
-        if (typeof showToast === 'function') showToast("Profilul utilizatorului a fost șters din baza de date.", "warning");
+        if (!confirm("ATENȚIE! Ești pe cale să ștergi DEFINITIV acest cont din Firebase Auth și baza de date. Această acțiune nu poate fi anulată. Continui?")) return;
+
+        try {
+            // Delete from Firebase Auth via worker
+            const idToken = await firebase.auth().currentUser?.getIdToken();
+            if (idToken) {
+                try {
+                    const workerRes = await fetch('/api/delete-user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ uid, idToken })
+                    });
+                    const workerData = await workerRes.json().catch(() => ({}));
+                    if (!workerRes.ok) console.error('[Admin] Worker delete-user failed:', workerRes.status, workerData);
+                    else console.log('[Admin] Firebase Auth deleted via worker.');
+                } catch (e) { console.error('[Admin] Worker fetch error:', e); }
+            }
+
+            // Delete from RTDB
+            const userSnap = await firebase.database().ref(`users/${uid}`).once('value');
+            const userData = userSnap.val() || {};
+            const updates = {};
+            if (userData.teamId) updates[`teams/${userData.teamId}/members/${uid}`] = null;
+            updates[`users/${uid}`] = null;
+            if (userData.email) {
+                const emailKey = userData.email.replace(/\./g, '_');
+                updates[`banned_emails/${emailKey}`] = userData.email;
+            }
+            await firebase.database().ref().update(updates);
+            if (typeof showToast === 'function') showToast("Contul a fost șters definitiv.", "error");
+        } catch (e) {
+            console.error("Delete account failed:", e);
+            if (typeof showToast === 'function') showToast("Eroare la ștergere.", "error");
+        }
     },
 
     removeMember: async function(uid) {
@@ -451,6 +517,36 @@ window.AdminModule = {
     rejectTeam: async function(requestId) {
         if (!confirm("Respingi această cerere?")) return;
         await firebase.database().ref(`team_requests/${requestId}`).remove();
+    },
+
+    approveAccount: async function(uid) {
+        if (!confirm("Aprobi acest cont?")) return;
+        try {
+            const userSnap = await firebase.database().ref(`users/${uid}`).once('value');
+            const userData = userSnap.val() || {};
+            const updates = {};
+            updates[`users/${uid}/status`] = 'approved';
+            if (userData.email) {
+                const emailKey = userData.email.replace(/\./g, '_');
+                updates[`banned_emails/${emailKey}`] = null;
+            }
+            await firebase.database().ref().update(updates);
+            if (typeof showToast === 'function') showToast("Cont aprobat cu succes!", "success");
+        } catch (e) {
+            console.error(e);
+            alert("Eroare la aprobare.");
+        }
+    },
+
+    rejectAccount: async function(uid) {
+        if (!confirm("Respingi acest cont?")) return;
+        try {
+            await firebase.database().ref(`users/${uid}`).update({ status: 'rejected' });
+            if (typeof showToast === 'function') showToast("Cont respins.", "error");
+        } catch (e) {
+            console.error(e);
+            alert("Eroare la respingere.");
+        }
     },
 
     // --- Logs ---

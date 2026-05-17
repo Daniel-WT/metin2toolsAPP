@@ -312,6 +312,14 @@ function saveSpawn() {
       if (current.evenHourType !== prev.evenHourType) updates['evenHourType'] = current.evenHourType || null;
       if (JSON.stringify(current.spawnTime) !== JSON.stringify(prev.spawnTime)) updates['spawnTime'] = current.spawnTime || null;
 
+      // spawn type grace period fields
+      var curPrev = current._prevSpawnType || null;
+      var snpPrev = prev._prevSpawnType || null;
+      if (curPrev !== snpPrev) updates['_prevSpawnType'] = curPrev;
+      var curRst = current._resetAt || null;
+      var snpRst = prev._resetAt || null;
+      if (curRst !== snpRst) updates['_resetAt'] = curRst;
+
       _prevFbSnapshot = current;
 
       if (Object.keys(updates).length > 0) {
@@ -1997,7 +2005,7 @@ function spawnTimerTick() {
   // Delayed spawn type switch (5 mins after CH1 spawn)
   if (spawnData && spawnData._spawnTypeChangesAt && Date.now() >= spawnData._spawnTypeChangesAt) {
     delete spawnData._spawnTypeChangesAt;
-    syncSpawnType(false, true, 25, 'delayed_switch'); 
+    syncSpawnType(false, true, 0, 'delayed_switch');
   }
   var display = document.getElementById('spawnTimerDisplay');
 
@@ -2031,8 +2039,14 @@ function spawnTimerTick() {
     }
   }
 
+  // Only count as organic near-zero if NOT in calibration cooldown (last 60s).
+  // Prevents user setting CH1 to a near-zero time from being treated as a real spawn.
+  var isCooldownActive = (Date.now() - _chTimeSetCooldown) < 60000;
+  if (ch1Diff !== null && ch1Diff <= 10 && !isCooldownActive) {
+    window._ch1OrganicNearZeroAt = Date.now();
+  }
+
   // Detect if we crossed the spawn boundary during a background tab throttle or short sleep.
-  // We require having been alive right before (< 300s) and waking up right after (> 3300s) indicating a jump across 0.
   var ch1Wrapped = false;
   if (window._prevCh1Diff !== undefined && window._prevCh1Diff !== null && ch1Diff !== null) {
     if (window._prevCh1Diff <= 300 && ch1Diff >= 3300 && gap <= 300000) {
@@ -2042,32 +2056,43 @@ function spawnTimerTick() {
   window._prevCh1Diff = ch1Diff;
 
   // Auto-clear when CH1 spawn time is reached (diff wraps from ~0 to ~3590+)
-  // Also clear if we definitely wrapped across the 0-boundary due to tab sleep/throttle (ch1Wrapped).
   if (ch1Diff !== null && (ch1Diff >= 3590 || ch1Wrapped)) {
     var now = getSyncedNow();
     var clearKey = ch1Val + '_h' + now.getHours();
-    var cooldownOk = (Date.now() - _chTimeSetCooldown) > 60000;
+    var cooldownOk = !isCooldownActive;
+    var organicSpawn = !!(window._ch1OrganicNearZeroAt && (Date.now() - window._ch1OrganicNearZeroAt) < 120000);
     if (lastSpawnClearTime !== clearKey) {
-      if (cooldownOk) {
-        // Normal spawn: clear tables + flip type
+      if (cooldownOk || organicSpawn) {
         lastSpawnClearTime = clearKey;
+        window._spawnResetPending = null;
         clearSpawnForRespawn();
       } else if (ch1Wrapped) {
-        // Spawn skip: CH1 was moved earlier and is now in the past.
-        // Clear tables and gheata but do NOT flip the spawn type.
         lastSpawnClearTime = clearKey;
+        window._spawnResetPending = null;
         _clearTablesSpawnSkip(clearKey);
+      } else {
+        // Blocked by calibration cooldown — defer until cooldown clears (max 5 min)
+        if (!window._spawnResetPending) {
+          window._spawnResetPending = { clearKey: clearKey, blockedAt: Date.now() };
+        }
       }
     }
   }
 
-  // Reset cooldown once diff drops below 120s — confirms we're in the active window
-  // so a recalibration after this point is intentional (user correcting the time)
-  if (ch1Diff !== null && ch1Diff > 0 && ch1Diff < 120) {
-    _chTimeSetCooldown = 0;
+  // Process deferred reset once cooldown expires
+  if (window._spawnResetPending) {
+    var _pendingReset = window._spawnResetPending;
+    if ((Date.now() - _chTimeSetCooldown) > 60000) {
+      window._spawnResetPending = null;
+      if (lastSpawnClearTime !== _pendingReset.clearKey && (Date.now() - _pendingReset.blockedAt) < 300000) {
+        lastSpawnClearTime = _pendingReset.clearKey;
+        clearSpawnForRespawn();
+      }
+    }
   }
 
-  // Alarms for CH1 and CH2
+  // Alarms for CH1 and CH2 — only for users in an active team
+  if (!window.currentUserProfile || !(window.currentUserProfile.currentTeamId || window.currentUserProfile.teamId)) return;
   // Uses sleep-aware detection: if page was asleep and alarm window was crossed,
   // fire the alarm immediately on wake (even if the exact second was missed)
   var alarmChs = ['ch1', 'ch2'];
@@ -2472,13 +2497,8 @@ function clearSpawnForRespawn() {
 
       var cycleData = snapshot.val();
       var prevType = spawnData.spawnType || 'simplu';
-      var nextType = prevType === 'dublu' ? 'simplu' : 'dublu';
-
-      // Compute when pop-out should flip to the new type: CH6 fires + 5 min
-      var _ch6v = spawnData.chTimes && spawnData.chTimes['ch6'];
-      var _ch6d = _ch6v ? _chTimeDiff(_ch6v) : null;
-      var delayMs = (_ch6d !== null ? (_ch6d + 300) : 300) * 1000;
-      spawnData._spawnTypeChangesAt = Date.now() + delayMs;
+      var nextUtcHour = (getSyncedNow().getUTCHours() + 1) % 24;
+      var nextType = getSpawnTypeByParity(nextUtcHour) || (prevType === 'dublu' ? 'simplu' : 'dublu');
 
       // Update anchor: this reset = start of new cycle, next spawn = nextType
       var anchorInterval = (spawnData.anchor && spawnData.anchor.intervalMs) || 3600000;
@@ -2486,10 +2506,10 @@ function clearSpawnForRespawn() {
 
       logSpawnTypeChange(prevType, 'reset_scheduled', prevType);
 
-      // Update local state
+      // Switch to next type immediately; keep prev for 15-min grace period in pop-out
+      spawnData.spawnType = nextType;
+      spawnData._prevSpawnType = prevType;
       spawnData._spawnCycle = { key: cycleKey, ts: cycleData.ts };
-      // Note: spawnType is now deterministic, but we call sync here to be sure
-      // No immediate syncSpawnType here — it's handled by _spawnTypeChangesAt in timer tick
       updateSpawnTypeUI();
 
       if (!_isSpawnEmpty()) pushSpawnHistory();
@@ -2533,9 +2553,8 @@ function clearSpawnForRespawn() {
     if (_sc.key === cycleKey) return; // already handled
     var prevType = spawnData.spawnType || 'simplu';
     var nextType = prevType === 'dublu' ? 'simplu' : 'dublu';
-    var _ch6vOff = spawnData.chTimes && spawnData.chTimes['ch6'];
-    var delayMsOff = (_ch6dOff !== null ? (_ch6dOff + 300) : 300) * 1000;
-    spawnData._spawnTypeChangesAt = Date.now() + delayMsOff;
+    spawnData.spawnType = nextType;
+    spawnData._prevSpawnType = prevType;
     logSpawnTypeChange(prevType, 'reset_scheduled', prevType);
     updateSpawnTypeUI();
     if (!_isSpawnEmpty()) pushSpawnHistory();
@@ -2741,14 +2760,16 @@ var SPAWN_TYPE_LOG_KEY = 'metin2_spawn_type_log_v1';
 function logSpawnTypeChange(newType, reason, fromType) {
   var ch1Val = (spawnData && spawnData.chTimes && spawnData.chTimes['ch1']) ? spawnData.chTimes['ch1'] : 'N/A';
   var ch1Diff = ch1Val !== 'N/A' ? _chTimeDiff(ch1Val) : null;
-  var entry = { 
-    ts: Date.now(), 
-    type: newType, 
-    reason: reason || 'manual', 
+  var localNow = new Date();
+  var entry = {
+    ts: Date.now(),
+    type: newType,
+    reason: reason || 'manual',
     fromType: fromType || null,
     ch1Time: ch1Val,
     ch1Diff: ch1Diff,
     hourUTC: getSyncedNow().getUTCHours(),
+    hourLocal: localNow.getHours(),
     userName: getM2UserName() || 'Anonim'
   };
   // Local cache
@@ -2770,22 +2791,36 @@ function logSpawnTypeChange(newType, reason, fromType) {
   }
 }
 
-// Calculates spawn type from anchor (stored in Firebase, so works even when no one was online)
-// anchor = { ts: <unix ms of a known spawn>, type: 'dublu'|'simplu', intervalMs: <ms per spawn cycle> }
+// Returns spawn type for a given UTC hour based on the user-set parity rule.
+// null if no rule stored yet.
+function getSpawnTypeByParity(utcHour) {
+  var rule = spawnData && spawnData.parityRule;
+  if (!rule || rule.settledHour === undefined || !rule.settledType) return null;
+  var sameParity = (utcHour % 2) === (rule.settledHour % 2);
+  return sameParity ? rule.settledType : (rule.settledType === 'dublu' ? 'simplu' : 'dublu');
+}
+
+// Calculates spawn type from anchor (seeded correctly from parity at each CH1 fire).
+// Anchor handles offline gaps — parity rule handles correctness at each spawn.
 function getCurrentSpawnType(offsetMin) {
-  var anchor = spawnData && spawnData.anchor;
   var now = getSyncedNow();
   if (offsetMin) now = new Date(now.getTime() + offsetMin * 60000);
+  var intervalMs = (spawnData && spawnData.anchor && spawnData.anchor.intervalMs) || 3600000;
 
+  // Primary: anchor-based (anchor is always set from parity at CH1 fire or manual calibration)
+  var anchor = spawnData && spawnData.anchor;
   if (anchor && anchor.ts && anchor.type) {
-    var intervalMs = anchor.intervalMs || 3600000;
     var elapsed = now.getTime() - anchor.ts;
-    if (elapsed < 0) return anchor.type; // before anchor
+    if (elapsed < 0) return anchor.type;
     var cycles = Math.floor(elapsed / intervalMs);
     return cycles % 2 === 0 ? anchor.type : (anchor.type === 'dublu' ? 'simplu' : 'dublu');
   }
 
-  // Legacy fallback: evenHourType (for data written before anchor system)
+  // Fallback: parity rule direct (no anchor yet — first session before any spawn)
+  var parityType = getSpawnTypeByParity(now.getUTCHours());
+  if (parityType) return parityType;
+
+  // Legacy fallback
   var rule = (spawnData && spawnData.evenHourType) ? spawnData.evenHourType : 'dublu';
   var hour = now.getUTCHours();
   return (hour % 2 === 0) ? rule : (rule === 'dublu' ? 'simplu' : 'dublu');
@@ -2841,11 +2876,42 @@ function setSpawnType(type) {
 
   spawnData.anchor = { ts: cycleStartTs, type: type, intervalMs: intervalMs };
   spawnData.spawnType = type;
+
+  // Parity rule uses the spawn hour (when CH1 fires), not the current hour.
+  // e.g. user confirms at 7:53 with spawn at 8:15 → settledHour = 8, not 7.
+  var syncedNowSet = getSyncedNow();
+  var ch1ValForParity = spawnData.chTimes && spawnData.chTimes['ch1'];
+  var ch1DiffForParity = ch1ValForParity ? _chTimeDiff(ch1ValForParity) : null;
+  var settledUtcHour;
+  if (ch1DiffForParity !== null && ch1DiffForParity > 0) {
+    settledUtcHour = new Date(syncedNowSet.getTime() + ch1DiffForParity * 1000).getUTCHours();
+  } else {
+    settledUtcHour = syncedNowSet.getUTCHours();
+  }
+  spawnData.parityRule = { settledHour: settledUtcHour, settledType: type };
+  spawnData._prevSpawnType = null;
+  spawnData._resetAt = null;
+
   saveSpawn();
   updateSpawnTypeUI();
 
+  // Log uses local spawn hour for readability
+  var localSpawnHour;
+  if (ch1DiffForParity !== null && ch1DiffForParity > 0) {
+    localSpawnHour = new Date(Date.now() + ch1DiffForParity * 1000).getHours();
+  } else {
+    localSpawnHour = new Date().getHours();
+  }
+  var parityLabelSet = (localSpawnHour % 2 === 0) ? 'pară' : 'impară';
+  var typeLabel = type === 'dublu' ? 'DUBLU' : 'SIMPLU';
+  var userName = getM2UserName() || (window.currentUserProfile && window.currentUserProfile.email) || 'Anonim';
+  var timeStr = _pad2(new Date().getHours()) + ':' + _pad2(new Date().getMinutes());
+  if (typeof window.addAdminLog === 'function') {
+    window.addAdminLog(userName + ' a setat spawnul ' + typeLabel + ' — spawn ora ' + localSpawnHour + ' (' + parityLabelSet + ') la ' + timeStr, 'data');
+  }
+
   logSpawnTypeChange(type, 'calibrare_manuala', prev);
-  showToast('Calibrare salvata', 'Spawnu curent setat ca ' + (type === 'dublu' ? 'DUBLU' : 'SIMPLU') + ' — tipul urmator se calculeaza automat');
+  showToast('Calibrare salvata', 'Spawnu curent setat ca ' + typeLabel + ' — tipul urmator se calculeaza automat');
 }
 
 function autoAlternateSpawnType(prevType) {
@@ -2929,6 +2995,7 @@ function pushSpawnHistory() {
     }, function(error, committed) {
       if (!committed) return; // another client already pushed this cycle
       var history = _loadSpawnHistory();
+      if (history.length > 0 && nowMs - history[0].ts < 60000) return; // extra dedup: skip if same cycle
       history.unshift(entry);
       if (history.length > SPAWN_HISTORY_MAX) history = history.slice(0, SPAWN_HISTORY_MAX);
       _saveSpawnHistory(history);
@@ -3259,27 +3326,34 @@ function renderTypeLog() {
     var d = new Date(entry.ts);
     var dateStr = _pad2(d.getDate()) + '.' + _pad2(d.getMonth()+1) + ' ' + _pad2(d.getHours()) + ':' + _pad2(d.getMinutes()) + ':' + _pad2(d.getSeconds());
     var toType = entry.type || 'simplu';
-    // fromType: stored in new entries; for old entries derive it as the opposite
     var fromType = entry.fromType || (toType === 'simplu' ? 'dublu' : 'simplu');
     var fromClass = fromType === 'dublu' ? 'sh-badge-type-dublu' : '';
     var toClass   = toType   === 'dublu' ? 'sh-badge-type-dublu' : '';
-    var reasonLabel = entry.reason || 'manual';
+    var reason = entry.reason || 'manual';
     var userLabel = entry.userName ? ('<strong>' + entry.userName + '</strong>: ') : '';
-    
-    if (reasonLabel.startsWith('calib_')) {
-       var isPara = reasonLabel.includes('_para_');
-       var isDubla = reasonLabel.includes('_dubla');
-       reasonLabel = 'a calibrat spawnul in ' + (isDubla ? 'Dubla' : 'Simpla') + ' la ora ' + (isPara ? 'para' : 'impara');
-    } else if (reasonLabel === 'auto') {
-       reasonLabel = 'schimbat automat la trecerea orei';
-    } else if (reasonLabel === 'delayed_switch') {
-       reasonLabel = 'schimbat automat (delay CH6)';
+
+    // Local hour for display
+    var localH = (entry.hourLocal !== undefined) ? entry.hourLocal : d.getHours();
+    var parityStr = (localH % 2 === 0) ? 'pară' : 'impară';
+    var hourStr = ' <span class="type-log-hour">ora ' + localH + ' (' + parityStr + ')</span>';
+
+    var reasonLabel;
+    if (reason === 'calibrare_manuala' || reason.startsWith('calib_')) {
+      reasonLabel = 'a calibrat manual';
+    } else if (reason === 'auto') {
+      reasonLabel = 'switch automat la trecerea orei';
+    } else if (reason === 'delayed_switch') {
+      reasonLabel = 'switch automat (după CH6)';
+    } else if (reason === 'reset_scheduled') {
+      reasonLabel = 'reset ciclu spawn';
+    } else {
+      reasonLabel = reason;
     }
 
     return '<div class="type-log-entry">' +
       '<span class="type-log-ts">' + dateStr + '</span>' +
       '<div class="type-log-details">' +
-        userLabel + reasonLabel + ' (' +
+        userLabel + reasonLabel + hourStr + ' (' +
         '<span class="sh-badge sh-badge-type ' + fromClass + '">' + fromType + '</span>' +
         ' <span class="type-log-arrow">&rarr;</span> ' +
         '<span class="sh-badge sh-badge-type ' + toClass + '">' + toType + '</span>)' +
@@ -3814,11 +3888,12 @@ function openSpawnPopout(type) {
         // Update "next CH" indicator below clock
         var nextChEl = popWin.document.getElementById('tsNextCh');
         if (nextChEl) {
-          // During spawn (CH1→CH6) and 5 min after CH6: show current spawn type, not the next one.
-          // _spawnTypeChangesAt is set when auto-switch fires = CH6_fire_time + 5min.
+          // Show previous spawn type for 15 min after auto-reset, then switch to next type.
           var _displayType = spawnData.spawnType || 'simplu';
-          if (spawnData._spawnTypeChangesAt && Date.now() < spawnData._spawnTypeChangesAt) {
-            _displayType = _displayType === 'dublu' ? 'simplu' : 'dublu';
+          var _prevST = spawnData._prevSpawnType;
+          var _rstAt = spawnData._resetAt || 0;
+          if (_prevST && _rstAt && (Date.now() - _rstAt) < 15 * 60 * 1000) {
+            _displayType = _prevST;
           }
           var spawnTypeLbl = _displayType === 'dublu' ? 'Dubla' : 'Simpla';
           if (nearestCh !== null && nearestDiff < 3600) {

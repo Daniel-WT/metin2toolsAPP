@@ -23,13 +23,16 @@ async function getGoogleAccessToken(serviceAccountJson) {
     exp: now + 3600,
     iat: now
   });
-  const keyData = sa.private_key.replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace(/\n/g, '');
+  const keyData = sa.private_key.replace(/\\n/g, '\n').replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace(/[\r\n\s]/g, '');
   const cryptoKey = await crypto.subtle.importKey(
     'pkcs8', Uint8Array.from(atob(keyData), c => c.charCodeAt(0)),
     { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']
   );
   const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(signingInput));
-  const jwt = signingInput + '.' + btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const sigBytes = new Uint8Array(sig);
+  let sigStr = '';
+  for (let i = 0; i < sigBytes.length; i++) sigStr += String.fromCharCode(sigBytes[i]);
+  const jwt = signingInput + '.' + btoa(sigStr).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -199,8 +202,22 @@ export default {
         return new Response(JSON.stringify({ ok: false, error: 'Service account not configured' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
       }
       try {
-        const { uid } = await request.json();
-        if (!uid) return new Response(JSON.stringify({ ok: false, error: 'Missing uid' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        const { uid, idToken } = await request.json();
+        if (!uid || !idToken) return new Response(JSON.stringify({ ok: false, error: 'Missing uid or idToken' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+
+        // Verify caller is superadmin via Firebase ID token
+        const lookupRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${env.FB_API_KEY}`,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }) }
+        );
+        if (!lookupRes.ok) return new Response(JSON.stringify({ ok: false, error: 'Invalid token' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        const lookupData = await lookupRes.json();
+        const callerEmail = lookupData.users?.[0]?.email;
+        if (callerEmail !== 'postavarudaniel@gmail.com') {
+          return new Response(JSON.stringify({ ok: false, error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+        }
+
+        // Delete from Firebase Auth
         const accessToken = await getGoogleAccessToken(env.FIREBASE_SERVICE_ACCOUNT);
         const authRes = await fetch(
           `https://identitytoolkit.googleapis.com/v1/projects/${env.FB_PROJECT_ID}/accounts:batchDelete`,
@@ -214,9 +231,6 @@ export default {
           const err = await authRes.text();
           return new Response(JSON.stringify({ ok: false, error: err }), { status: 500, headers: { 'Content-Type': 'application/json' } });
         }
-        const fbBase = env.FB_DATABASE_URL.replace(/\/$/, '');
-        const fbAuth = `auth=${env.FB_DATABASE_SECRET}`;
-        await fetch(`${fbBase}/users/${uid}.json?${fbAuth}`, { method: 'DELETE' });
         return new Response(JSON.stringify({ ok: true }), { headers: { 'Content-Type': 'application/json' } });
       } catch (e) {
         return new Response(JSON.stringify({ ok: false, error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });

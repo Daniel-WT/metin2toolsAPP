@@ -1,5 +1,5 @@
 // ============ FIREBASE LAYER ============
-const APP_VERSION = 'v5.4.2';
+const APP_VERSION = 'v5.5.1';
 const FB_CONFIG_KEY = 'metin2_fb_config';
 window.db = null;
 let db = null; // keep local ref for compatibility if needed, but better use window.db
@@ -157,6 +157,7 @@ function initFirebase(config) {
 
       // 3b. Spawn History — sync from Firebase so all clients see the same history
       db.ref(`teams/${teamId}/spawn/history`).on('value', snap => {
+
         const val = snap.val();
         if (!val) return;
         // If we just saved locally, skip for 3s to prevent Firebase from reverting delete/restore
@@ -171,6 +172,21 @@ function initFirebase(config) {
           _spawnHistoryCache = arr;
           try { localStorage.setItem(typeof SPAWN_HISTORY_KEY !== 'undefined' ? SPAWN_HISTORY_KEY : 'metin2_spawn_history_v1', JSON.stringify(arr)); } catch(e) {}
           if (typeof renderSpawnHistory === 'function') renderSpawnHistory();
+        }
+      });
+
+      // 3c. Spawn Type Log — sync for debug tab (real-time across all clients)
+      db.ref(`teams/${teamId}/spawn/typeLog`).on('value', snap => {
+        const val = snap.val();
+        if (!val) return;
+        var arr = Array.isArray(val) ? val : Object.values(val).filter(Boolean);
+        arr.sort(function(a, b) { return (b.ts || 0) - (a.ts || 0); });
+        if (arr.length > 200) arr = arr.slice(0, 200);
+        var current = typeof _spawnTypeLogCache !== 'undefined' ? _spawnTypeLogCache : null;
+        if (!current || JSON.stringify(arr) !== JSON.stringify(current)) {
+          _spawnTypeLogCache = arr;
+          try { localStorage.setItem(typeof SPAWN_TYPE_LOG_KEY !== 'undefined' ? SPAWN_TYPE_LOG_KEY : 'metin2_spawn_type_log_v1', JSON.stringify(arr)); } catch(e) {}
+          if (typeof renderTypeLog === 'function') renderTypeLog();
         }
       });
 
