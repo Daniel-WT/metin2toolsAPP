@@ -406,6 +406,55 @@ fn relaunch_as_admin(app: tauri::AppHandle) {
 }
 
 #[tauri::command]
+fn get_autostart() -> bool {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    std::process::Command::new("schtasks")
+        .args(["/query", "/tn", "Metin2Tools"])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+#[tauri::command]
+fn set_autostart(enabled: bool) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    if enabled {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let exe_str = exe.to_string_lossy().to_string();
+        let output = std::process::Command::new("schtasks")
+            .args([
+                "/create",
+                "/tn", "Metin2Tools",
+                "/tr", &format!("\"{}\"", exe_str),
+                "/sc", "ONLOGON",
+                "/rl", "HIGHEST",
+                "/f",
+            ])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .map_err(|e| e.to_string())?;
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        }
+    } else {
+        let _ = std::process::Command::new("schtasks")
+            .args(["/delete", "/tn", "Metin2Tools", "/f"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn prepare_relaunch() -> Result<(), String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let exe_str = exe.to_string_lossy().to_string();
@@ -546,6 +595,8 @@ fn main() {
             focus_window,
             is_admin,
             relaunch_as_admin,
+            get_autostart,
+            set_autostart,
             close_tcp_for_pid,
             close_tcp_all_except,
             register_mouse_bind,

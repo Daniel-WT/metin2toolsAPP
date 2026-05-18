@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { User, Bell, Shield, Key, Save, Lock, Mail, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Bell, Shield, Key, Save, Lock, Mail, CheckCircle2, Eye, EyeOff, Power } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/tauri';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
 import { SidebarOrderCard } from '../Tweaks/SidebarOrderCard';
@@ -10,6 +11,27 @@ export default function Settings() {
   const [color, setColor] = useState(user?.color || '#c8962e');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [autostart, setAutostart] = useState(false);
+  const [autostartLoading, setAutostartLoading] = useState(false);
+
+  useEffect(() => {
+    invoke<boolean>('is_admin').then(setIsAdmin).catch(() => setIsAdmin(false));
+    invoke<boolean>('get_autostart').then(setAutostart).catch(() => setAutostart(false));
+  }, []);
+
+  const handleToggleAutostart = async () => {
+    if (!isAdmin || autostartLoading) return;
+    setAutostartLoading(true);
+    try {
+      await invoke('set_autostart', { enabled: !autostart });
+      setAutostart(!autostart);
+    } catch (e) {
+      console.error('Autostart error:', e);
+    } finally {
+      setAutostartLoading(false);
+    }
+  };
 
   const PRESET_COLORS = [
     '#c8962e', // Gold
@@ -142,6 +164,47 @@ export default function Settings() {
 
         {/* Info Column */}
         <div className="space-y-6">
+
+          {/* Autostart Card */}
+          <div className="card bg-emerald-500/[0.02] border-emerald-500/10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <Power className="w-4 h-4 text-emerald-400" />
+              </div>
+              <h4 className="font-bold text-slate-100">Autostart</h4>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed mb-4">
+              Pornește aplicația automat la boot cu privilegii de Administrator, fără prompt UAC.
+            </p>
+            <button
+              onClick={handleToggleAutostart}
+              disabled={!isAdmin || autostartLoading}
+              className={cn(
+                "w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                autostart
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                  : "bg-white/5 text-slate-400 border-white/10 hover:bg-white/10 hover:text-slate-100",
+                (!isAdmin || autostartLoading) && "opacity-50 cursor-not-allowed"
+              )}
+            >
+              <span>{autostartLoading ? "Se aplică..." : autostart ? "Activ" : "Inactiv"}</span>
+              <div className={cn(
+                "w-8 h-4 rounded-full relative transition-colors bg-slate-700",
+                autostart && "bg-emerald-500"
+              )}>
+                <div className={cn(
+                  "absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-300 shadow-sm",
+                  autostart ? "translate-x-4" : "translate-x-0"
+                )} />
+              </div>
+            </button>
+            {!isAdmin && (
+              <p className="text-[9px] text-amber-500/60 mt-2 italic">
+                Necesită rulare ca Administrator pentru a activa.
+              </p>
+            )}
+          </div>
+
           <div className="card bg-accent-gold/[0.02] border-accent-gold/10">
             <Shield className="w-8 h-8 text-accent-gold mb-4" />
             <h4 className="font-bold text-slate-100 mb-2">Securitate</h4>

@@ -94,7 +94,7 @@ export function RoomIndicator({ id, label, x, y, isSpawn, w, h, roomChannels, ge
       style={dotStyle}
       onClick={(e) => { if (!isSpawn) return; onAction(id, label, e, 'sef'); }}
       onContextMenu={(e) => { e.preventDefault(); if (!isSpawn) return; onAction(id, label, e, 'gen'); }}
-      onAuxClick={(e) => { e.preventDefault(); if ((id === '18' || id === 'F') && onGenFalsToggle) onGenFalsToggle(id, e); }}
+      onAuxClick={(e) => { if (e.button !== 1) return; e.preventDefault(); if ((id === '18' || id === 'F') && onGenFalsToggle) onGenFalsToggle(id, e); }}
     >
       {isRoyal && (
         <div className="absolute -top-8 left-0 right-0 flex justify-center pointer-events-none z-30">
@@ -128,47 +128,44 @@ export function RoomIndicator({ id, label, x, y, isSpawn, w, h, roomChannels, ge
         {label}
       </div>
       
-      {isSpawn && chList.length > 0 && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-0.5 flex justify-center gap-0.5 pointer-events-none">
-          {chList.map((chKey) => {
-            const re = roomChannels[`ch${chKey}`];
-            const bgColor = re?.dead ? '#e05252' : re?.going ? re.goingColor || '#00e6b4' : re?.type === 'gen' ? '#4a9eff' : '#4caf82';
-            const isGoing = !!re?.going;
-            return (
-              <span
-                key={chKey}
-                className={cn(
-                  "rounded-[1px] font-black text-black border border-black/10 whitespace-nowrap transition-all",
-                  "px-1 py-0.5 text-[8px]",
-                  isGoing && "ring-1 ring-white/50 animate-pulse"
-                )}
-                style={{ background: bgColor, opacity: re?.dead ? 0.5 : 1 }}
-              >
-                {chKey}
-              </span>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Gen Fals Indicators */}
-      {(id === '18' || id === 'F') && (() => {
-        const fakeChs: string[] = [];
-        Object.entries(genFals || {}).forEach(([chKey, val]: [string, any]) => {
-          if (id === '18' && val?.gf18) fakeChs.push(chKey.replace('ch', ''));
-          if (id === 'F' && val?.gfF) fakeChs.push(chKey.replace('ch', ''));
-        });
-        if (fakeChs.length === 0) return null;
+      {isSpawn && (() => {
+        const falsChs = new Set<string>();
+        if (id === '18' || id === 'F') {
+          Object.entries(genFals || {}).forEach(([chKey, val]: [string, any]) => {
+            if ((id === '18' && val?.gf18) || (id === 'F' && val?.gfF))
+              falsChs.add(chKey.replace('ch', ''));
+          });
+        }
+        const allChs = [...new Set([...chList, ...Array.from(falsChs)])];
+        if (allChs.length === 0) return null;
         return (
-          <div className="absolute top-full mt-[18px] left-1/2 -translate-x-1/2 flex gap-1 pointer-events-none">
-            {fakeChs.sort().map(c => (
-              <div key={c} className="relative">
-                <span className="w-4 h-4 flex items-center justify-center rounded-[3px] bg-red-950/40 text-[8px] font-black text-red-500 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.1)]">
-                  {c}
+          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-0.5 flex gap-0.5 pointer-events-none w-max">
+            {allChs.map((chKey) => {
+              const re = roomChannels?.[`ch${chKey}`];
+              const isFals = falsChs.has(chKey);
+              const bgColor = isFals
+                ? '#3b0000'
+                : re?.dead ? '#e05252' : re?.going ? re.goingColor || '#00e6b4' : re?.type === 'gen' ? '#4a9eff' : '#4caf82';
+              const textColor = isFals ? '#fca5a5' : '#000';
+              const isGoing = !isFals && !!re?.going;
+              return (
+                <span
+                  key={chKey}
+                  className={cn(
+                    "relative inline-block rounded-[1px] font-black border whitespace-nowrap transition-all",
+                    "px-1 py-0.5 text-[8px]",
+                    isFals ? "border-red-900/70" : "border-black/10",
+                    isGoing && "ring-1 ring-white/50 animate-pulse"
+                  )}
+                  style={{ background: bgColor, color: textColor, opacity: re?.dead && !isFals ? 0.5 : 1 }}
+                >
+                  {chKey}
+                  {isFals && (
+                    <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-[#0a0b0e] shadow-[0_0_4px_rgba(239,68,68,0.6)]" />
+                  )}
                 </span>
-                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-bg-primary shadow-[0_0_5px_rgba(239,68,68,0.5)]" />
-              </div>
-            ))}
+              );
+            })}
           </div>
         );
       })()}

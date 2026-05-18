@@ -16,6 +16,18 @@ interface ChangelogItem {
 
 const CHANGELOG: ChangelogItem[] = [
   {
+    version: 'v1.3.2',
+    date: '18 May 2026',
+    changes: [
+      'Setări: opțiune Autostart — pornește aplicația la boot ca Administrator fără prompt UAC (Task Scheduler)',
+      'Installer NSIS: design branded dark cu logo și text auriu (header + sidebar)',
+      'Spawn: fix crash RoomIndicator când gen fals era activ fără canale raportate',
+      'Spawn: badge-urile de canal și gen fals apar pe un singur rând orizontal',
+      'Spawn: click dreapta pe camera 18/F nu mai declanșează gen fals toggle',
+    ],
+    type: 'feat'
+  },
+  {
     version: 'v1.3.1',
     date: '18 May 2026',
     changes: [
