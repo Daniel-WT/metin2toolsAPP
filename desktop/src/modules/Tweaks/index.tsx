@@ -15,6 +15,7 @@ interface Metin2Win {
   width: number;
   height: number;
   created_at: number;
+  minimized: boolean;
 }
 
 interface Preset {
@@ -313,13 +314,28 @@ export default function Tweaks() {
         // Sort by PID for stable comparison
         wins.sort((a, b) => a.pid - b.pid);
 
-        // Only update m2wins if something actually changed — prevents re-renders every 5s when idle
         setM2wins(prev => {
+          const winsMap = new Map<string, Metin2Win>(wins.map(w => [w.hwnd, w]));
+          // Actualizează ferestrele existente la pozițiile lor stabile; elimină cele închise
+          const retained = prev
+            .filter(w => winsMap.has(w.hwnd))
+            .map(w => winsMap.get(w.hwnd)!);
+          // Ferestre noi (niciodată văzute) — Rust le-a sortat deja newest-first
+          const retainedHwnds = new Set(retained.map(w => w.hwnd));
+          const incoming = wins.filter(w => !retainedHwnds.has(w.hwnd));
+          // Skip re-render dacă nimic nu s-a schimbat
           if (
-            prev.length === wins.length &&
-            prev.every((w, i) => w.pid === wins[i].pid && w.title === wins[i].title && w.hwnd === wins[i].hwnd)
+            incoming.length === 0 &&
+            retained.length === prev.length &&
+            retained.every((w, i) => {
+              const p = prev[i];
+              return w.hwnd === p.hwnd && w.title === p.title &&
+                     w.width === p.width && w.height === p.height &&
+                     w.minimized === p.minimized;
+            })
           ) return prev;
-          return wins;
+          // Ferestrele noi sus; cele existente își păstrează ordinea
+          return [...incoming, ...retained];
         });
 
         // Only update winTitles when the set of windows changed (new/closed clients)
@@ -623,11 +639,20 @@ export default function Tweaks() {
     setScanning(true);
     try {
       const wins = await invoke<Metin2Win[]>('list_metin2_windows');
-      setM2wins(wins);
-      // Pre-fill input with current titles
-      const map: Record<string, string> = {};
-      wins.forEach(w => { map[w.hwnd] = w.title; });
-      setWinTitles(map);
+      setM2wins(prev => {
+        const winsMap = new Map<string, Metin2Win>(wins.map(w => [w.hwnd, w]));
+        const retained = prev
+          .filter(w => winsMap.has(w.hwnd))
+          .map(w => winsMap.get(w.hwnd)!);
+        const retainedHwnds = new Set(retained.map(w => w.hwnd));
+        const incoming = wins.filter(w => !retainedHwnds.has(w.hwnd));
+        return [...incoming, ...retained];
+      });
+      setWinTitles(prev => {
+        const next: Record<string, string> = {};
+        wins.forEach(w => { next[w.hwnd] = prev[w.hwnd] ?? w.title; });
+        return next;
+      });
     } catch (e) {
       console.error('[Tweaks] Scan error:', e);
       showToast('Nu s-au putut detecta ferestrele Metin2.', false);
@@ -1363,7 +1388,7 @@ export default function Tweaks() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 scrollbar-hide">
             {filteredTitleWins.map(w => (
               <div key={w.hwnd} className="flex items-center gap-3 p-3 rounded-xl bg-bg-secondary border border-white/5 hover:border-white/10 transition-colors">
                 {/* Identify button — brings that window to front */}
@@ -1492,7 +1517,7 @@ export default function Tweaks() {
             <p className="text-slate-500 text-sm text-center">Apasa Refresh din sectiunea de mai sus pentru a detecta clientele.</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1 scrollbar-hide">
             {filteredTcpWins.map(w => {
               const pidStr = String(w.pid);
               const bound = tcpBindings[pidStr];
@@ -1517,6 +1542,9 @@ export default function Tweaks() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-[10px] font-black uppercase tracking-widest text-slate-600">{w.exe}</p>
+                      {w.width > 0 && w.height > 0 && (
+                        <span className="text-[9px] font-bold text-slate-700 font-display">{w.width}×{w.height}</span>
+                      )}
                       {hasProfile && (
                         <span className="text-[9px] font-bold text-accent-gold/60 uppercase tracking-widest">profil</span>
                       )}

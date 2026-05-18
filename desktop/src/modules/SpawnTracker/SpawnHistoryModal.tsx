@@ -371,7 +371,7 @@ export function SpawnHistoryModal({ isOpen, onClose }: SpawnHistoryModalProps) {
                     const date = new Date(log.ts);
                     const dateStr = date.toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit' });
                     const timeStr = date.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                    const localH = log.hourLocal ?? date.getHours();
+                    const localH = log.hourUtc ?? log.hourLocal ?? new Date(log.ts).getUTCHours();
                     const parityStr = (localH % 2 === 0) ? 'pară' : 'impară';
                     const reason = log.reason || 'auto-switch';
                     const reasonLabel = reason === 'calibrare_manuala' ? 'calibrare manuală'

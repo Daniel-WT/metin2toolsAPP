@@ -346,7 +346,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (isPopout) return; // Only main window fires alerts
 
     const now = new Date(Date.now() + serverTimeOffset);
-    const currentHour = now.getHours();
+    const currentHour = now.getUTCHours();
     const nowInHour = now.getMinutes() * 60 + now.getSeconds();
 
     Object.entries(spawnData.chTimes).forEach(([ch, val]) => {
@@ -409,12 +409,14 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             (Date.now() - ch1OrganicNearZeroAtRef.current) < 120000;
 
           if (!firedAlertsRef.current.has(clearKey + '_reset')) {
-            if (cooldownOk || organicSpawn) {
+            if (cooldownOk || organicSpawn || ch1Wrapped) {
+              // ch1Wrapped = countdown went through zero naturally → reset always fires
+              // even if cooldown is active (user recalibrated just before the actual spawn)
               firedAlertsRef.current.add(clearKey + '_reset');
               spawnResetPendingRef.current = null;
               clearSpawnForRespawnRef.current?.(clearKey);
-            } else if (!ch1Wrapped) {
-              // Defer until cooldown expires
+            } else {
+              // ch1Diff >= 3590 but no wrap detected → defer until cooldown expires
               if (!spawnResetPendingRef.current) {
                 spawnResetPendingRef.current = { clearKey, blockedAt: Date.now() };
               }
@@ -509,7 +511,6 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const logTypeChange = useCallback((from: string, to: string, reason?: string) => {
     if (!teamId) return;
-    const localNow = new Date();
     const historyPath = `teams/${teamId}/spawn/typeHistory`;
     const newLogRef = push(ref(db, historyPath));
     set(newLogRef, {
@@ -517,7 +518,7 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       from,
       to,
       reason: reason || 'auto-switch',
-      hourLocal: localNow.getHours(),
+      hourUtc: new Date().getUTCHours(),
       userName: user?.name || (user?.email ? user.email.split('@')[0] : 'Anonim')
     });
   }, [teamId, user]);
@@ -792,10 +793,10 @@ export const SpawnProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updates: Record<string, any> = { spawnType: type, evenHourType, parityRule, anchor, _prevSpawnType: null, _resetAt: null, rooms: null, entries: null, pins: null, chBeaten: null };
     update(ref(db, basePath), updates);
 
-    const localSpawnHour = new Date(ch1DiffSec !== null && ch1DiffSec > 0 ? Date.now() + ch1DiffSec * 1000 : Date.now()).getHours();
-    const parityLocal = (localSpawnHour % 2 === 0) ? 'pară' : 'impară';
+    const utcSpawnHour = new Date(ch1DiffSec !== null && ch1DiffSec > 0 ? Date.now() + ch1DiffSec * 1000 : Date.now()).getUTCHours();
+    const parityUtc = (utcSpawnHour % 2 === 0) ? 'pară' : 'impară';
     logTypeChange(prevType, type, 'calibrare_manuala');
-    logActivity(`A setat spawnul ${type.toUpperCase()} — spawn ora ${localSpawnHour} (${parityLocal})`);
+    logActivity(`A setat spawnul ${type.toUpperCase()} — spawn ora ${utcSpawnHour} UTC (${parityUtc})`);
   }, [basePath, logActivity, pushUndo, spawnData?.spawnType, spawnData?.chTimes, spawnData?.anchor, logTypeChange, pushSpawnHistory, serverTimeOffset]);
 
   const toggleGenFals = useCallback((ch: number, roomId: string) => {

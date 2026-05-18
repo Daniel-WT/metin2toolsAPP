@@ -16,6 +16,19 @@ interface ChangelogItem {
 
 const CHANGELOG: ChangelogItem[] = [
   {
+    version: 'v1.3.1',
+    date: '18 May 2026',
+    changes: [
+      'Tweaks: lista de ferestre este acum scrollabila (suporta 10-15+ clienti)',
+      'Tweaks: rezolutia clientului nu mai dispare daca jocul este minimizat in bara (cache Rust)',
+      'Tweaks: ordinea ferestrelor este stabila la Refresh si la scanare automata',
+      'Spawn: paritate simplu/dublu ora foloseste acum UTC corect (fix timezone)',
+      'Spawn: indicatorii gen fals pe harta nu se mai suprapun cu notatiile normale',
+      'Discord: embed-uri webhook curate si profesionale (author, title, description)',
+    ],
+    type: 'fix'
+  },
+  {
     version: 'v1.3.0',
     date: '17 May 2026',
     changes: [

@@ -31,6 +31,7 @@ import { Volume2, Settings as SettingsIcon, Zap, X as CloseIcon, Eye, EyeOff, Lo
 import { appWindow } from '@tauri-apps/api/window';
 import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
 import { relaunch } from '@tauri-apps/api/process';
+import { invoke } from '@tauri-apps/api/tauri';
 import { Minus, Square, X, Hexagon, Download, Sparkles } from 'lucide-react';
 
 const AdminPanel = React.lazy(() => import('./modules/Admin/index'));
@@ -261,21 +262,28 @@ function AppContent() {
   const [updateInfo, setUpdateInfo] = useState<{ version: string; body?: string } | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  // Check for updates on startup (production only)
+  // Check for updates on startup and every 30 minutes (production only)
   useEffect(() => {
     if (import.meta.env.DEV) return;
-    checkUpdate().then(({ shouldUpdate, manifest }) => {
-      if (shouldUpdate && manifest) {
-        setUpdateInfo({ version: manifest.version, body: manifest.body });
-      }
-    }).catch(() => {});
+    const check = () => {
+      checkUpdate().then(({ shouldUpdate, manifest }) => {
+        if (shouldUpdate && manifest) {
+          setUpdateInfo({ version: manifest.version, body: manifest.body });
+        }
+      }).catch(() => {});
+    };
+    check();
+    const interval = setInterval(check, 30 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleInstallUpdate = async () => {
     setIsUpdating(true);
     try {
+      // Spawn background relauncher before installing — survives if NSIS kills this process
+      await invoke('prepare_relaunch').catch(() => {});
       await installUpdate();
-      await relaunch();
+      await relaunch(); // fallback if process is still alive after install
     } catch {
       setIsUpdating(false);
     }

@@ -13,7 +13,7 @@ use winapi::um::tlhelp32::{
 };
 use winapi::um::winuser::{
     CallNextHookEx, EnumWindows, GetClientRect, GetMessageW, GetWindowTextW,
-    GetWindowThreadProcessId, IsWindowVisible, MSLLHOOKSTRUCT, MSG, SetWindowsHookExW,
+    GetWindowThreadProcessId, IsIconic, IsWindowVisible, MSLLHOOKSTRUCT, MSG, SetWindowsHookExW,
     SetWindowTextW, UnhookWindowsHookEx, WH_MOUSE_LL, WM_XBUTTONDOWN,
 };
 use winapi::um::iphlpapi::{GetExtendedTcpTable, SetTcpEntry};
@@ -30,6 +30,14 @@ struct Metin2Window {
     width: u32,
     height: u32,
     created_at: u64,
+    minimized: bool,
+}
+
+// Cache pentru ultima rezoluție cunoscută a fiecărei ferestre (HWND → (w, h))
+static WIN_SIZE_CACHE: OnceLock<Mutex<HashMap<u64, (u32, u32)>>> = OnceLock::new();
+
+fn get_win_size_cache() -> &'static Mutex<HashMap<u64, (u32, u32)>> {
+    WIN_SIZE_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn wide_str(s: &str) -> Vec<u16> {
@@ -237,10 +245,28 @@ unsafe extern "system" fn enum_cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
         .to_string_lossy()
         .into_owned();
 
+    let minimized = IsIconic(hwnd) != 0;
+    let hwnd_key  = hwnd as u64;
+
     let mut rect: RECT = std::mem::zeroed();
     GetClientRect(hwnd, &mut rect);
-    let width  = (rect.right  - rect.left).max(0) as u32;
-    let height = (rect.bottom - rect.top ).max(0) as u32;
+    let w = (rect.right  - rect.left).max(0) as u32;
+    let h = (rect.bottom - rect.top ).max(0) as u32;
+
+    let (width, height) = if w > 0 && h > 0 {
+        // Fereastră vizibilă — actualizează cache-ul
+        if let Ok(mut cache) = get_win_size_cache().lock() {
+            cache.insert(hwnd_key, (w, h));
+        }
+        (w, h)
+    } else {
+        // Minimizată — returnează ultima rezoluție știută
+        get_win_size_cache()
+            .lock()
+            .ok()
+            .and_then(|c| c.get(&hwnd_key).copied())
+            .unwrap_or((0, 0))
+    };
 
     data.results.push(Metin2Window {
         hwnd: format!("{}", hwnd as u64),
@@ -250,6 +276,7 @@ unsafe extern "system" fn enum_cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
         width,
         height,
         created_at: 0,
+        minimized,
     });
 
     1
@@ -278,6 +305,14 @@ fn list_metin2_windows() -> Vec<Metin2Window> {
             CloseHandle(hproc);
         }
     }
+    // Curăță intrările cache pentru ferestre care nu mai există
+    let active: HashSet<u64> = data.results.iter()
+        .filter_map(|w| w.hwnd.parse().ok())
+        .collect();
+    if let Ok(mut cache) = get_win_size_cache().lock() {
+        cache.retain(|k, _| active.contains(k));
+    }
+
     // Most recently opened first
     data.results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
     data.results
@@ -368,6 +403,24 @@ fn relaunch_as_admin(app: tauri::AppHandle) {
             app.exit(0);
         }
     }
+}
+
+#[tauri::command]
+fn prepare_relaunch() -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let exe_str = exe.to_string_lossy().to_string();
+    // Spawn a hidden PowerShell that waits for the NSIS installer to finish, then relaunches the app.
+    // This process survives even if the current process is killed by the installer.
+    std::process::Command::new("powershell")
+        .args([
+            "-WindowStyle", "Hidden",
+            "-NonInteractive",
+            "-Command",
+            &format!("Start-Sleep -Seconds 4; Start-Process '{}'", exe_str.replace('\'', "''")),
+        ])
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -487,6 +540,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             greet,
+            prepare_relaunch,
             list_metin2_windows,
             set_window_title,
             focus_window,

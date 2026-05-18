@@ -54,6 +54,42 @@ function discordDedup(key) {
   return true;
 }
 
+// ── Skin alert embed builder ──
+function buildSkinAlertEmbed(itemName, account, category, alertType, expiresIn, hoursLeft) {
+  const catMap = {
+    'skin-arma': 'Skin Armă', 'costum': 'Costum',
+    'frizura': 'Frizură', 'insotitor': 'Însoțitor', 'sase-sapte': '6-7 Ore'
+  };
+  const cat  = catMap[category] || category || 'N/A';
+  const acc  = account  || 'N/A';
+  const name = itemName || 'N/A';
+
+  if (alertType === 'urgent') return {
+    color: 0xed4245,
+    author: { name: `⚠  Expirare urgentă — ${hoursLeft || '?'}h rămase` },
+    title: name,
+    description: `**${acc}** · ${cat}\nExpiră în \`${expiresIn}\``,
+    footer: { text: 'Metin2 Tools • Skin Reminder' },
+    timestamp: new Date().toISOString()
+  };
+  if (alertType === '1day') return {
+    color: 0xe67e22,
+    author: { name: '🔔  Expiră în mai puțin de 1 zi' },
+    title: name,
+    description: `**${acc}** · ${cat}\nExpiră în \`${expiresIn}\``,
+    footer: { text: 'Metin2 Tools • Skin Reminder' },
+    timestamp: new Date().toISOString()
+  };
+  return {
+    color: 0xc8962e,
+    author: { name: '📅  Expiră în mai puțin de 4 zile' },
+    title: name,
+    description: `**${acc}** · ${cat}\nExpiră în \`${expiresIn}\``,
+    footer: { text: 'Metin2 Tools • Skin Reminder' },
+    timestamp: new Date().toISOString()
+  };
+}
+
 // ── Handler principal ──
 export default {
   async fetch(request, env) {
@@ -76,23 +112,7 @@ export default {
         const dedupKey = (body.itemId || (itemName + '|' + account)) + '_' + alertType;
         if (!discordDedup(dedupKey)) return new Response(JSON.stringify({ ok: true, dedup: true }));
 
-        const isUrgent = alertType === 'urgent';
-        const color = isUrgent ? 0xff2020 : alertType === '1day' ? 0xe05252 : 0xc8962e;
-        let title = isUrgent ? `🚨 URGENT — Expira in ${body.hoursLeft || '?'}h!` : '🔔 Alerta Expirare';
-
-        const embed = {
-          title: title,
-          color: color,
-          fields: [
-            { name: 'Item', value: itemName || 'N/A', inline: true },
-            { name: 'Cont', value: account || 'N/A', inline: true },
-            { name: 'Categorie', value: category || 'N/A', inline: true },
-            { name: 'Timp ramas', value: expiresIn || 'N/A', inline: true },
-          ],
-          timestamp: new Date().toISOString(),
-          footer: { text: 'Metin2 Tools' }
-        };
-
+        const embed = buildSkinAlertEmbed(itemName, account, category, alertType, expiresIn, body.hoursLeft);
         await fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -422,25 +442,11 @@ export default {
           const expiresIn = alertType === 'urgent'
             ? `${Math.floor(remaining / 3600000)}h ${Math.floor((remaining % 3600000) / 60000)}m`
             : msToDisplay(remaining);
-          const color = alertType === 'urgent' ? 0xff2020 : alertType === '1day' ? 0xe05252 : 0xc8962e;
-          const title = alertType === 'urgent' ? `🚨 URGENT — Expira in ${hourSlot}h!` : '🔔 Alerta Expirare';
+          const embed = buildSkinAlertEmbed(item.name, item.account, item.category, alertType, expiresIn, hourSlot);
           await fetch(webhookUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              embeds: [{
-                title,
-                color,
-                fields: [
-                  { name: 'Item',      value: item.name     || 'N/A', inline: true },
-                  { name: 'Cont',      value: item.account  || 'N/A', inline: true },
-                  { name: 'Categorie', value: item.category || 'N/A', inline: true },
-                  { name: 'Timp ramas', value: expiresIn,              inline: true }
-                ],
-                timestamp: new Date().toISOString(),
-                footer: { text: 'Metin2 Tools' }
-              }]
-            })
+            body: JSON.stringify({ embeds: [embed] })
           });
         };
 

@@ -135,13 +135,13 @@ export function RoomIndicator({ id, label, x, y, isSpawn, w, h, roomChannels, ge
             const bgColor = re?.dead ? '#e05252' : re?.going ? re.goingColor || '#00e6b4' : re?.type === 'gen' ? '#4a9eff' : '#4caf82';
             const isGoing = !!re?.going;
             return (
-              <span 
-                key={chKey} 
+              <span
+                key={chKey}
                 className={cn(
                   "rounded-[1px] font-black text-black border border-black/10 whitespace-nowrap transition-all",
                   "px-1 py-0.5 text-[8px]",
                   isGoing && "ring-1 ring-white/50 animate-pulse"
-                )} 
+                )}
                 style={{ background: bgColor, opacity: re?.dead ? 0.5 : 1 }}
               >
                 {chKey}
@@ -160,17 +160,15 @@ export function RoomIndicator({ id, label, x, y, isSpawn, w, h, roomChannels, ge
         });
         if (fakeChs.length === 0) return null;
         return (
-          <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 pointer-events-none">
-            <div className="flex gap-1">
-              {fakeChs.sort().map(c => (
-                <div key={c} className="relative group/fake">
-                  <span className="w-4 h-4 flex items-center justify-center rounded-[3px] bg-red-950/40 text-[8px] font-black text-red-500 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.1)]">
-                    {c}
-                  </span>
-                  <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-bg-primary shadow-[0_0_5px_rgba(239,68,68,0.5)]" />
-                </div>
-              ))}
-            </div>
+          <div className="absolute top-full mt-[18px] left-1/2 -translate-x-1/2 flex gap-1 pointer-events-none">
+            {fakeChs.sort().map(c => (
+              <div key={c} className="relative">
+                <span className="w-4 h-4 flex items-center justify-center rounded-[3px] bg-red-950/40 text-[8px] font-black text-red-500 border border-red-500/30 shadow-[0_0_10px_rgba(239,68,68,0.1)]">
+                  {c}
+                </span>
+                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-red-500 rounded-full border border-bg-primary shadow-[0_0_5px_rgba(239,68,68,0.5)]" />
+              </div>
+            ))}
           </div>
         );
       })()}

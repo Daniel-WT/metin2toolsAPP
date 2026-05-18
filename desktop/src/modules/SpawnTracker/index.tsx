@@ -86,9 +86,9 @@ function SpawnTrackerContent() {
         variant="danger"
       />
 
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-8 h-full max-h-[calc(100vh-140px)]">
-          <div className="xl:col-span-3 flex flex-col min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto xl:overflow-hidden">
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-8 xl:h-full xl:max-h-[calc(100vh-140px)]">
+          <div className="xl:col-span-3 flex flex-col xl:min-h-0">
             <div className="flex items-center justify-between mb-3 px-1 group shrink-0">
               <div className="flex items-center gap-2">
                 <MapIcon className="w-4 h-4 text-accent-gold" />
@@ -101,7 +101,7 @@ function SpawnTrackerContent() {
                     url: 'index.html?view=map',
                     title: 'Hartă Spawn - Metin2 Tools',
                     resizable: true,
-                    alwaysOnTop: true,
+                    alwaysOnTop: false,
                     decorations: false,
                     transparent: false,
                     width: geo.width ?? 600,
@@ -115,7 +115,7 @@ function SpawnTrackerContent() {
                 <ExternalLink className="w-3 h-3" />
               </button>
             </div>
-            <div className="flex-1 min-h-0 relative">
+            <div className="relative aspect-square w-full xl:flex-1 xl:w-auto xl:mx-auto bg-black rounded-2xl overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-full h-full max-w-full max-h-full aspect-square">
                   <MapView />
@@ -137,7 +137,7 @@ function SpawnTrackerContent() {
                       new WebviewWindow('timpspawn-popout', {
                         url: 'index.html?view=timpspawn',
                         title: 'Timp Spawn - Metin2 Tools',
-                        resizable: true, alwaysOnTop: true, decorations: false, transparent: false,
+                        resizable: true, alwaysOnTop: false, decorations: false, transparent: false,
                         width: geo.width ?? 340, height: geo.height ?? 600,
                         ...(geo.x !== undefined ? { x: geo.x, y: geo.y, center: false } : { center: true }),
                       });
@@ -174,7 +174,7 @@ function SpawnTrackerContent() {
                         url: 'index.html?view=gheatatable',
                         title: 'Tabel Gheață - Metin2 Tools',
                         resizable: true,
-                        alwaysOnTop: true,
+                        alwaysOnTop: false,
                         decorations: false,
                         transparent: false,
                         width: geo.width ?? 500,

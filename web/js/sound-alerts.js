@@ -265,17 +265,28 @@ function saveDiscordNotified() {
   }
 }
 
-function sendDiscordAlert(item, alertType) {
-  const tier = alertType === '1day' ? 'day1' : 'day4';
-  // Check both local and Firebase-synced dedup
-  if (discordNotified[tier][item.id]) return;
-  if (_discordNotifiedFb && _discordNotifiedFb[tier] && _discordNotifiedFb[tier][item.id]) return;
-  discordNotified[tier][item.id] = true;
+function sendDiscordWebhook(item, alertType, hourSlot) {
+  const isUrgent = alertType === 'urgent';
+  const tier = isUrgent ? 'hourly' : alertType === '1day' ? 'day1' : 'day4';
+  const key = isUrgent ? item.id + '_h' + hourSlot : item.id;
+
+  if (isUrgent) {
+    if (!discordNotified.hourly) discordNotified.hourly = {};
+    if (discordNotified.hourly[key]) return;
+    if (_discordNotifiedFb && _discordNotifiedFb.hourly && _discordNotifiedFb.hourly[key]) return;
+    discordNotified.hourly[key] = true;
+  } else {
+    if (discordNotified[tier][key]) return;
+    if (_discordNotifiedFb && _discordNotifiedFb[tier] && _discordNotifiedFb[tier][key]) return;
+    discordNotified[tier][key] = true;
+  }
   saveDiscordNotified();
 
   const ms = getRemaining(item);
   const t = msToHMS(ms);
-  const expiresIn = (t.d > 0 ? t.d + 'z ' : '') + t.h + 'h ' + t.m + 'm';
+  const expiresIn = isUrgent
+    ? t.h + 'h ' + t.m + 'm'
+    : (t.d > 0 ? t.d + 'z ' : '') + t.h + 'h ' + t.m + 'm';
 
   fetch('/api/discord-notify', {
     method: 'POST',
@@ -287,42 +298,12 @@ function sendDiscordAlert(item, alertType) {
       category: item.category,
       alertType: alertType,
       expiresIn: expiresIn,
-      webhookUrl: window.teamWebhookSkin || undefined
-    })
-  }).catch(() => {
-    delete discordNotified[tier][item.id];
-    saveDiscordNotified();
-  });
-}
-
-// Urgent hourly Discord alert — deduped per item+hourSlot
-function sendDiscordUrgentAlert(item, hourSlot) {
-  if (!discordNotified.hourly) discordNotified.hourly = {};
-  const key = item.id + '_h' + hourSlot;
-  if (discordNotified.hourly[key]) return;
-  if (_discordNotifiedFb && _discordNotifiedFb.hourly && _discordNotifiedFb.hourly[key]) return;
-  discordNotified.hourly[key] = true;
-  saveDiscordNotified();
-
-  const ms = getRemaining(item);
-  const t = msToHMS(ms);
-  const expiresIn = t.h + 'h ' + t.m + 'm';
-
-  fetch('/api/discord-notify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      itemId: item.id,
-      itemName: item.name,
-      account: item.account,
-      category: item.category,
-      alertType: 'urgent',
-      expiresIn: expiresIn,
       hoursLeft: hourSlot,
       webhookUrl: window.teamWebhookSkin || undefined
     })
   }).catch(() => {
-    delete discordNotified.hourly[key];
+    if (isUrgent) delete discordNotified.hourly[key];
+    else delete discordNotified[tier][key];
     saveDiscordNotified();
   });
 }
@@ -342,15 +323,6 @@ function clearDiscordNotified(itemId) {
   }
   
   saveDiscordNotified();
-
-  // ALSO clear the Worker's dedup keys in /discordAlertsSent in Firebase
-  if (typeof db !== 'undefined' && db) {
-    db.ref(p('discordAlertsSent/' + itemId + '_1day')).remove();
-    db.ref(p('discordAlertsSent/' + itemId + '_4day')).remove();
-    for (let h = 1; h <= 6; h++) {
-      db.ref(p('discordAlertsSent/' + itemId + '_urgent_h' + h)).remove();
-    }
-  }
 }
 
 // ============ ALERT SYSTEM ============
@@ -624,7 +596,7 @@ document.getElementById('szAlertOk').addEventListener('click', function() {
 
 function show1DayAlert(item) {
   alertShowing = true;
-  sendDiscordAlert(item, '1day');
+  sendDiscordWebhook(item, '1day');
   document.getElementById('alert1Body').innerHTML =
     `Itemul <span class="alert-item-name">${escHtml(item.name)}</span> de pe contul <span class="alert-item-name">${escHtml(item.account)}</span> expira in mai putin de <strong>24 de ore</strong>!<br><br>Reinnoieste-l cat mai curand.`;
   openModal('alert1Modal');
@@ -633,7 +605,7 @@ function show1DayAlert(item) {
 
 function show4DayAlert(item) {
   alertShowing = true;
-  sendDiscordAlert(item, '4day');
+  sendDiscordWebhook(item, '4day');
   document.getElementById('alert4Body').innerHTML =
     `Itemul <span class="alert-item-name">${escHtml(item.name)}</span> de pe contul <span class="alert-item-name">${escHtml(item.account)}</span> expira in mai putin de <strong>4 zile</strong>!<br><br>Daca skinul este <strong>personalizat</strong>, depersonalizeaza-l acum pentru a evita pierderea personalizarii.`;
   openModal('alert4Modal');
@@ -642,7 +614,7 @@ function show4DayAlert(item) {
 
 function showHourlyAlert(item, hourSlot) {
   alertShowing = true;
-  sendDiscordUrgentAlert(item, hourSlot);
+  sendDiscordWebhook(item, 'urgent', hourSlot);
   const ms = getRemaining(item);
   const t = msToHMS(ms);
   const timeStr = t.h + 'h ' + t.m + 'm ' + t.s + 's';

@@ -1,5 +1,5 @@
 // ============ FIREBASE LAYER ============
-const APP_VERSION = 'v5.5.1';
+const APP_VERSION = 'v5.5.2';
 const FB_CONFIG_KEY = 'metin2_fb_config';
 window.db = null;
 let db = null; // keep local ref for compatibility if needed, but better use window.db

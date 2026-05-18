@@ -2058,7 +2058,7 @@ function spawnTimerTick() {
   // Auto-clear when CH1 spawn time is reached (diff wraps from ~0 to ~3590+)
   if (ch1Diff !== null && (ch1Diff >= 3590 || ch1Wrapped)) {
     var now = getSyncedNow();
-    var clearKey = ch1Val + '_h' + now.getHours();
+    var clearKey = ch1Val + '_h' + now.getUTCHours();
     var cooldownOk = !isCooldownActive;
     var organicSpawn = !!(window._ch1OrganicNearZeroAt && (Date.now() - window._ch1OrganicNearZeroAt) < 120000);
     if (lastSpawnClearTime !== clearKey) {
@@ -2104,7 +2104,7 @@ function spawnTimerTick() {
     var chDiff = _chTimeDiff(chVal);
     if (chDiff === null) continue;
     var nowObj = getSyncedNow();
-    var cycleKey = chVal + '_' + chKey + '_h' + nowObj.getHours();
+    var cycleKey = chVal + '_' + chKey + '_h' + nowObj.getUTCHours();
     var chLabel = chKey.toUpperCase().replace('CH', 'CH ');
 
     // What chDiff was ~before the sleep gap (approximate)
@@ -2374,7 +2374,7 @@ function _markSpawnCycleHandled() {
   var ch1Val = (spawnData && spawnData.chTimes && spawnData.chTimes['ch1']) ? spawnData.chTimes['ch1'] : '';
   if (!ch1Val) return;
   var now = getSyncedNow();
-  lastSpawnClearTime = ch1Val + '_h' + now.getHours();
+  lastSpawnClearTime = ch1Val + '_h' + now.getUTCHours();
 }
 
 function _isSpawnEmpty() {
@@ -2895,19 +2895,18 @@ function setSpawnType(type) {
   saveSpawn();
   updateSpawnTypeUI();
 
-  // Log uses local spawn hour for readability
-  var localSpawnHour;
+  var utcSpawnHour;
   if (ch1DiffForParity !== null && ch1DiffForParity > 0) {
-    localSpawnHour = new Date(Date.now() + ch1DiffForParity * 1000).getHours();
+    utcSpawnHour = new Date(Date.now() + ch1DiffForParity * 1000).getUTCHours();
   } else {
-    localSpawnHour = new Date().getHours();
+    utcSpawnHour = new Date().getUTCHours();
   }
-  var parityLabelSet = (localSpawnHour % 2 === 0) ? 'pară' : 'impară';
+  var parityLabelSet = (utcSpawnHour % 2 === 0) ? 'pară' : 'impară';
   var typeLabel = type === 'dublu' ? 'DUBLU' : 'SIMPLU';
   var userName = getM2UserName() || (window.currentUserProfile && window.currentUserProfile.email) || 'Anonim';
   var timeStr = _pad2(new Date().getHours()) + ':' + _pad2(new Date().getMinutes());
   if (typeof window.addAdminLog === 'function') {
-    window.addAdminLog(userName + ' a setat spawnul ' + typeLabel + ' — spawn ora ' + localSpawnHour + ' (' + parityLabelSet + ') la ' + timeStr, 'data');
+    window.addAdminLog(userName + ' a setat spawnul ' + typeLabel + ' — spawn ora ' + utcSpawnHour + ' UTC (' + parityLabelSet + ') la ' + timeStr, 'data');
   }
 
   logSpawnTypeChange(type, 'calibrare_manuala', prev);
@@ -3332,8 +3331,7 @@ function renderTypeLog() {
     var reason = entry.reason || 'manual';
     var userLabel = entry.userName ? ('<strong>' + entry.userName + '</strong>: ') : '';
 
-    // Local hour for display
-    var localH = (entry.hourLocal !== undefined) ? entry.hourLocal : d.getHours();
+    var localH = (entry.hourUTC !== undefined) ? entry.hourUTC : (entry.hourLocal !== undefined) ? entry.hourLocal : new Date(entry.ts).getUTCHours();
     var parityStr = (localH % 2 === 0) ? 'pară' : 'impară';
     var hourStr = ' <span class="type-log-hour">ora ' + localH + ' (' + parityStr + ')</span>';
 

@@ -17,7 +17,7 @@ export function MapView() {
   const genFalsPopoverRef = useRef<HTMLDivElement>(null);
   
   const isPopout = window.location.search.includes('view=map');
-  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(true);
+  const [isAlwaysOnTop, setIsAlwaysOnTop] = useState(false);
   const [showOnFeedback, setShowOnFeedback] = useState(false);
   const [showOffFeedback, setShowOffFeedback] = useState(false);
 
@@ -62,7 +62,7 @@ export function MapView() {
   return (
     <div
       className={cn(
-        "relative mx-auto aspect-square rounded-3xl overflow-hidden border border-white/5 bg-black/20 group/map max-w-full max-h-full select-none",
+        "relative mx-auto aspect-square overflow-hidden group/map max-w-full max-h-full select-none bg-black",
         activeCH !== null ? "cursor-crosshair" : "cursor-default",
         isPopout && "rounded-none h-screen w-screen border-none"
       )}
@@ -135,7 +135,7 @@ export function MapView() {
             src="/map.png" 
             alt="Metin2 Map" 
             className={cn(
-              "absolute inset-0 w-full h-full object-cover rounded-2xl shadow-2xl opacity-80",
+              "absolute inset-0 w-full h-full object-cover opacity-80",
               (activeCH !== null || !isPopout) ? "pointer-events-auto" : "pointer-events-none"
             )} 
           />
